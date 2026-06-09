@@ -1,0 +1,7 @@
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+
+WORKDIR /opt/ddp
+
+COPY c1_ddp_mnist.py /opt/ddp/c1_ddp_mnist.py
+
+CMD ["python", "/opt/ddp/c1_ddp_mnist.py"]

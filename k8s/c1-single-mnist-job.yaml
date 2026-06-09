@@ -1,0 +1,18 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mnist-single
+  namespace: default
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pytorch
+          image: swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1
+          command:
+            - python
+            - /opt/ddp/c1_ddp_mnist.py
+            - --epochs=3
+            - --batch-size=128
+  backoffLimit: 0

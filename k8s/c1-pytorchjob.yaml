@@ -1,0 +1,33 @@
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: mnist-ddp
+  namespace: default
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        spec:
+          containers:
+            - name: pytorch
+              image: swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1
+              command:
+                - python
+                - /opt/ddp/c1_ddp_mnist.py
+                - --epochs=3
+                - --batch-size=128
+    Worker:
+      replicas: 2
+      restartPolicy: Never
+      template:
+        spec:
+          containers:
+            - name: pytorch
+              image: swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1
+              command:
+                - python
+                - /opt/ddp/c1_ddp_mnist.py
+                - --epochs=3
+                - --batch-size=128
