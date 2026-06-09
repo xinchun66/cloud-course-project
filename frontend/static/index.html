@@ -2,30 +2,11 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>云计算技术课程设计</title>
+    <title>Cloud Computing Course Project</title>
 </head>
 <body>
-    <h1>云计算技术课程设计</h1>
-    <p>姓名：李欣纯</p>
-    <p>学号：2023116052</p>
-    <p>前端 Nginx 服务运行正常</p>
-
-    <h2>后端 API 测试</h2>
-    <button onclick="testApi()">测试 /api/ping</button>
-    <pre id="result"></pre>
-
-    <script>
-        function testApi() {
-            fetch('/api/ping')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('result').textContent =
-                        JSON.stringify(data, null, 2);
-                })
-                .catch(error => {
-                    document.getElementById('result').textContent = error;
-                });
-        }
-    </script>
+    <h1>Cloud Computing Course Project</h1>
+    <p>Name: 李欣纯</p>
+    <p>Student ID: 2023116052</p>
 </body>
 </html>
