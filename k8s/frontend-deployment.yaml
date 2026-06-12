@@ -13,9 +13,11 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: default-secret
       containers:
         - name: frontend
-          image: swr.cn-north-4.myhuaweicloud.com/xinchunli/frontend:v1
+          image: swr.cn-north-4.myhuaweicloud.com/cloud-course-a/frontend:v1
           ports:
             - containerPort: 80
           resources:

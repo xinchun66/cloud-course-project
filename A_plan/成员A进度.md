@@ -5,7 +5,7 @@
 | 状态 | 任务 | 当前进度 |
 |---|---|---|
 | [x] | T2 CCE 集群搭建 | 已完成，已提交 `figures_A/T2` 截图和说明。 |
-| [ ] | T3 应用部署 | 等待 B 同学将 backend/frontend 镜像推送到 A 同学的 SWR 组织 `cloud-course-a`；CloudShell 中 T3 YAML 已准备。 |
+| [x] | T3 应用部署 | 已完成，已提交 `figures_A/T3` 截图和说明。 |
 | [x] | T4 Redis 持久化存储 | 已完成，已提交 `figures_A/T4` 截图。 |
 | [ ] | T5 ConfigMap Volume 挂载 | 未开始。 |
 | [ ] | T6 HPA 弹性伸缩 | 未开始。 |
@@ -33,8 +33,8 @@
 
 ## T3 应用部署
 
-- [ ] 确认 SWR 中存在后端镜像：`swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:v1`。
-- [ ] 确认 SWR 中存在前端镜像：`swr.cn-north-4.myhuaweicloud.com/cloud-course-a/frontend:v1`。
+- [x] 确认 SWR 中存在后端镜像：`swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:v1`。
+- [x] 确认 SWR 中存在前端镜像：`swr.cn-north-4.myhuaweicloud.com/cloud-course-a/frontend:v1`。
 - [x] 检查并准备 `k8s/backend-config.yaml`。
 - [x] 检查并准备 `k8s/redis-secret.yaml`。
 - [x] 检查并准备 `k8s/redis-deployment.yaml`。
@@ -42,13 +42,21 @@
 - [x] 检查并准备 `k8s/frontend-deployment.yaml`，镜像地址已切换到 `cloud-course-a/frontend:v1`。
 - [x] 检查并准备 `k8s/frontend-nginx-config.yaml`。
 - [x] 检查并准备 `k8s/services.yaml`。
-- [ ] 执行 `kubectl apply` 部署 ConfigMap、Secret、Redis、Backend、Service。
-- [ ] 执行 `kubectl get pods`，确认所有 Pod Running。
-- [ ] 执行 `kubectl get svc`，确认 backend Service 获得 ELB 公网 IP。
-- [ ] 访问 `/api/ping`，确认返回 `{"status":"ok"}`。
-- [ ] 保存 T3 截图到 `figures_A/T3/`。
-- [ ] 编写 `figures_A/T3/T3说明.md`。
-- [ ] 提交 T3 截图和说明。
+- [x] 执行 `kubectl apply` 部署 ConfigMap、Secret、Redis、Backend、Service。
+- [x] 执行 `kubectl get pods`，确认所有 Pod Running。
+- [x] 执行 `kubectl get svc`，确认 backend Service 获得 ELB 公网 IP。
+- [x] 访问 `/api/ping`，确认返回 `{"redis":"connected","status":"ok"}`。
+- [x] 保存 T3 截图到 `figures_A/T3/`。
+- [x] 编写 `figures_A/T3/T3说明.md`。
+- [x] 提交 T3 截图和说明。
+
+说明：T3 部署过程中遇到两个问题：一是 backend/frontend 私有 SWR 镜像拉取时出现 `401 Unauthorized`，通过为 Deployment 绑定 `default-secret` 解决；二是 `backend-svc` 的 `LoadBalancer` 外部 IP 长时间 `<pending>`，通过创建共享型公网 ELB 并为 Service 添加 `kubernetes.io/elb.id` 注解解决。T3 核心验收截图已保存：
+
+```text
+figures_A/T3/02_【验收】Pod全部Running状态.png
+figures_A/T3/05_【验收】浏览器访问api_ping返回ok.png
+figures_A/T3/06_【验收】curl访问api_ping返回ok.png
+```
 
 ## T4 Redis 持久化存储
 
@@ -132,9 +140,4 @@ figures_A/T4/06_【验收】重建后查询testkey仍返回hello.png
 
 ## 下一步
 
-当前下一步仍是 T3 应用部署。开始 T3 前需要先确认 B 同学已经将后端和前端镜像推送到 A 同学的 SWR 组织：
-
-```text
-swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:v1
-swr.cn-north-4.myhuaweicloud.com/cloud-course-a/frontend:v1
-```
+当前下一步是 T5 ConfigMap Volume 挂载。T4 已提前完成，后续需要在当前 frontend Deployment 基础上验证 Nginx ConfigMap 以 Volume 形式挂载到 `/etc/nginx/conf.d/default.conf`，并完成修改 ConfigMap 后进入 Pod 查看配置文件更新的验收截图。

@@ -13,9 +13,11 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+        - name: default-secret
       containers:
         - name: backend
-          image: swr.cn-north-4.myhuaweicloud.com/xinchunli/backend:v1
+          image: swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:v1
           ports:
             - containerPort: 5000
           resources:
