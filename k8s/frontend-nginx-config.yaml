@@ -8,6 +8,8 @@ data:
     server {
         listen 80;
 
+        # T5 ConfigMap volume update verified
+
         location / {
             root /usr/share/nginx/html;
             index index.html;

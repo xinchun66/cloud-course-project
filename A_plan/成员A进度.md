@@ -7,7 +7,7 @@
 | [x] | T2 CCE 集群搭建 | 已完成，已提交 `figures_A/T2` 截图和说明。 |
 | [x] | T3 应用部署 | 已完成，已提交 `figures_A/T3` 截图和说明。 |
 | [x] | T4 Redis 持久化存储 | 已完成，已提交 `figures_A/T4` 截图。 |
-| [ ] | T5 ConfigMap Volume 挂载 | 未开始。 |
+| [x] | T5 ConfigMap Volume 挂载 | 已完成，已保存 `figures_A/T5` 截图和说明。 |
 | [ ] | T6 HPA 弹性伸缩 | 未开始。 |
 | [ ] | A-0 Spark Operator 环境部署 | 未开始。 |
 | [ ] | 附加题 1 Prometheus + Grafana 监控系统 | 未开始。 |
@@ -81,15 +81,21 @@ figures_A/T4/06_【验收】重建后查询testkey仍返回hello.png
 
 ## T5 ConfigMap Volume 挂载
 
-- [ ] 创建或检查 Nginx ConfigMap。
-- [ ] 修改前端 Deployment，将 ConfigMap 以 Volume 形式挂载到 `/etc/nginx/conf.d/default.conf`。
-- [ ] 执行 `kubectl exec` 查看前端 Pod 内 Nginx 配置文件。
-- [ ] 修改 ConfigMap 中的端口或配置内容。
-- [ ] 重新 `kubectl apply`。
-- [ ] 再次 exec 验证配置文件已更新。
-- [ ] 保存 T5 截图到 `figures_A/T5/`。
-- [ ] 编写 `figures_A/T5/T5说明.md`。
+- [x] 创建或检查 Nginx ConfigMap。
+- [x] 修改前端 Deployment，将 ConfigMap 以 Volume 形式挂载到 `/etc/nginx/conf.d/default.conf`。
+- [x] 执行 `kubectl exec` 查看前端 Pod 内 Nginx 配置文件。
+- [x] 修改 ConfigMap 中的配置内容，加入 `# T5 ConfigMap volume update verified` 验证标记。
+- [x] 重新 `kubectl apply`。
+- [x] 再次 exec 验证配置文件已更新。
+- [x] 保存 T5 截图到 `figures_A/T5/`。
+- [x] 编写 `figures_A/T5/T5说明.md`。
 - [ ] 提交 T5 截图和说明。
+
+说明：frontend Deployment 使用 `frontend-nginx-config` 作为 ConfigMap Volume，并挂载到 `/etc/nginx/conf.d/default.conf`。由于当前挂载方式使用 `subPath`，修改 ConfigMap 后通过 `kubectl rollout restart deployment frontend` 触发新 Pod 重新挂载配置。T5 核心验收截图已保存：
+
+```text
+figures_A/T5/05_【验收】修改后exec验证配置文件已更新.png
+```
 
 ## T6 HPA 弹性伸缩
 
@@ -140,4 +146,4 @@ figures_A/T4/06_【验收】重建后查询testkey仍返回hello.png
 
 ## 下一步
 
-当前下一步是 T5 ConfigMap Volume 挂载。T4 已提前完成，后续需要在当前 frontend Deployment 基础上验证 Nginx ConfigMap 以 Volume 形式挂载到 `/etc/nginx/conf.d/default.conf`，并完成修改 ConfigMap 后进入 Pod 查看配置文件更新的验收截图。
+当前下一步是 T6 HPA 弹性伸缩。需要确认 metrics-server 可用，创建 backend HPA，并配合压测观察 backend Pod 扩容和缩容。
