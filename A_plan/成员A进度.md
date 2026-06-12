@@ -7,8 +7,8 @@
 | [x] | T2 CCE 集群搭建 | 已完成，已提交 `figures_A/T2` 截图和说明。 |
 | [x] | T3 应用部署 | 已完成，已提交 `figures_A/T3` 截图和说明。 |
 | [x] | T4 Redis 持久化存储 | 已完成，已提交 `figures_A/T4` 截图。 |
-| [x] | T5 ConfigMap Volume 挂载 | 已完成，已保存 `figures_A/T5` 截图和说明。 |
-| [ ] | T6 HPA 弹性伸缩 | 未开始。 |
+| [x] | T5 ConfigMap Volume 挂载 | 已完成，已提交 `figures_A/T5` 截图和说明。 |
+| [x] | T6 HPA 弹性伸缩 | 已完成，已提交 `figures_A/T6` 截图和说明。 |
 | [ ] | A-0 Spark Operator 环境部署 | 未开始。 |
 | [ ] | 附加题 1 Prometheus + Grafana 监控系统 | 未开始。 |
 | [ ] | 附加题 2 CI/CD 云端部署验证 | 未开始。 |
@@ -89,7 +89,7 @@ figures_A/T4/06_【验收】重建后查询testkey仍返回hello.png
 - [x] 再次 exec 验证配置文件已更新。
 - [x] 保存 T5 截图到 `figures_A/T5/`。
 - [x] 编写 `figures_A/T5/T5说明.md`。
-- [ ] 提交 T5 截图和说明。
+- [x] 提交 T5 截图和说明。
 
 说明：frontend Deployment 使用 `frontend-nginx-config` 作为 ConfigMap Volume，并挂载到 `/etc/nginx/conf.d/default.conf`。由于当前挂载方式使用 `subPath`，修改 ConfigMap 后通过 `kubectl rollout restart deployment frontend` 触发新 Pod 重新挂载配置。T5 核心验收截图已保存：
 
@@ -99,15 +99,23 @@ figures_A/T5/05_【验收】修改后exec验证配置文件已更新.png
 
 ## T6 HPA 弹性伸缩
 
-- [ ] 确认 metrics-server 可用，执行 `kubectl top nodes`。
-- [ ] 创建 backend HPA。
-- [ ] 执行 `kubectl get hpa`，确认 HPA 参数正确。
-- [ ] 配合 B 同学发起压测。
-- [ ] 观察 Pod 从 1 个扩容到 2 个或更多。
-- [ ] 停止压测后观察 Pod 缩回 1 个。
-- [ ] 保存 T6 截图到 `figures_A/T6/`。
-- [ ] 编写 `figures_A/T6/T6说明.md`。
-- [ ] 提交 T6 截图和说明。
+- [x] 确认 metrics-server 可用，执行 `kubectl top nodes`。
+- [x] 创建 backend HPA。
+- [x] 执行 `kubectl get hpa`，确认 HPA 参数正确。
+- [x] 使用 curl 循环脚本发起压测。
+- [x] 观察 Pod 从 1 个扩容到 4 个。
+- [x] 停止压测后观察 Pod 自然缩回 1 个。
+- [x] 恢复 HPA 标准配置：`minReplicas=1`、`maxReplicas=4`、CPU 目标 `60%`。
+- [x] 保存 T6 截图到 `figures_A/T6/`。
+- [x] 编写 `figures_A/T6/T6说明.md`。
+- [x] 提交 T6 截图和说明。
+
+说明：T6 中先安装并验证 Kubernetes Metrics Server，随后创建 `backend-hpa`，参数为 `minReplicas=1`、`maxReplicas=4`、CPU 目标 `60%`。由于 CloudShell 未安装 `ab`，使用 curl 循环脚本访问 `http://1.92.151.224/api/ping` 进行压测，HPA 成功将 backend Pod 从 1 个扩容到 4 个。停止压测时发现后台 `while true curl` 任务仍在持续产生请求，清理全部后台任务后，CPU 下降到目标值以下，HPA 自然缩容回 1 个 Pod。最终已删除并重新应用 `k8s/backend-hpa.yaml`，确保云上 HPA 配置恢复为任务书模板。T6 核心验收截图已保存：
+
+```text
+figures_A/T6/06_【验收】Pod数量从1扩容到2或更多.png
+figures_A/T6/08_【验收】Pod数量缩回1个.png
+```
 
 ## A-0 Spark Operator 环境部署
 
@@ -146,4 +154,4 @@ figures_A/T5/05_【验收】修改后exec验证配置文件已更新.png
 
 ## 下一步
 
-当前下一步是 T6 HPA 弹性伸缩。需要确认 metrics-server 可用，创建 backend HPA，并配合压测观察 backend Pod 扩容和缩容。
+当前下一步是 A-0 Spark Operator 环境部署。需要确认 Spark Operator 安装方式，部署 Operator，并提交 SparkApplication 进行云端验证。
