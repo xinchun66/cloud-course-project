@@ -1,0 +1,859 @@
+﻿% !TeX program = xelatex
+\documentclass[UTF8,a4paper,zihao=-4]{ctexart}
+
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{xcolor}
+
+\geometry{left=2.6cm,right=2.6cm,top=2.4cm,bottom=2.4cm}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\hypersetup{hidelinks}
+
+\titleformat{\section}{\centering\zihao{3}\bfseries}{第\chinese{section}章}{1em}{}
+\titleformat{\subsection}{\zihao{4}\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\zihao{-4}\bfseries}{\thesubsubsection}{1em}{}
+
+\newcommand{\coverline}[2]{%
+  \makebox[3.2cm][l]{\zihao{4}#1}%
+  \underline{\makebox[7.8cm][l]{\zihao{4}#2}}%
+}
+\newcommand{\reportfig}[4][0.92\textwidth]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1]{#2}
+    \caption{#3}
+    \label{#4}
+  \end{figure}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{0.4cm}
+
+  \includegraphics[width=10.2cm]{assets/swjtu-title.png}
+
+  \vspace{1.0cm}
+  \includegraphics[width=2.8cm]{assets/swjtu-logo.png}
+
+  \vspace{1.3cm}
+  {\zihao{2}\bfseries 云计算技术\par}
+
+  \vspace{1.4cm}
+  {\zihao{2}\bfseries 课程设计报告\par}
+
+  \vfill
+
+  \begin{minipage}{11.2cm}
+    \setstretch{1.85}
+    \coverline{专业年级：}{软件工程专业 2023级}\\
+    \coverline{组员1：}{李欣纯（2023116052）}\\
+    \coverline{组员2：}{郑瑞璟（2023115271）}\\
+    \coverline{指导老师：}{丛荣}\\
+    \coverline{提交日期：}{2026年5月21日}\\
+  \end{minipage}
+
+  \vspace*{1.0cm}
+\end{titlepage}
+
+\pagenumbering{Roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\section{课程设计概述}
+\subsection{设计目标与任务要求}
+
+本课程设计围绕云计算平台搭建与并行编程实战两条主线展开，目标是在真实云平台环境中完成从应用容器化、镜像仓库管理、Kubernetes 集群部署，到分布式数据分析与性能评价的完整实践。与单纯的本地实验不同，本项目要求将课堂中涉及的容器、服务发现、负载均衡、持久化存储、配置分离、弹性伸缩和分布式计算等概念，落实到华为云 CCE、SWR、ELB、OBS 等具体服务之上。因此，本报告不只记录操作过程，也重点说明各组件之间的关系、关键配置的作用以及实验验证的依据。
+
+根据任务书要求，课程设计总成绩由云计算平台搭建、并行编程实战和报告质量三部分构成。其中，第一部分要求在华为云 CCE 上部署 Flask 后端 API、Redis 数据库和 Nginx 前端页面，并完成对外暴露、数据持久化、ConfigMap Volume 挂载和 HPA 弹性伸缩验证；第二部分选择方向 A，即 Spark 大数据分析，围绕豆瓣电影数据集完成 Spark Operator 环境部署、数据清洗、Spark SQL 统计分析以及 Pandas 与 PySpark 的性能对比；报告部分则要求结构完整、截图清晰、分析充分，并附上核心代码和配置文件。
+
+\subsubsection{课程设计总体目标}
+
+本项目的总体目标可以概括为“构建一套可运行、可验证、可分析的云原生课程设计系统”。在平台层面，项目以容器化 Web 应用为载体，将后端服务、缓存数据库和前端静态服务分别构建为容器镜像，并通过 Kubernetes Deployment、Service、ConfigMap、Secret、PVC 和 HPA 等资源完成部署与治理。在数据计算层面，项目选择 Spark 大数据分析方向，利用 PySpark 对电影数据进行清洗、聚合统计、趋势分析和性能测试，体现云平台对并行计算任务的支撑能力。
+
+从能力训练角度看，本课程设计主要覆盖以下目标：第一，掌握 Docker 镜像构建、Docker Compose 本地联调和 SWR 镜像推送流程；第二，掌握 CCE 集群创建、kubectl 连接、Pod 与 Service 状态检查等 Kubernetes 基础操作；第三，理解 ConfigMap、Secret、PVC、LoadBalancer、HPA 等资源在云原生应用中的作用；第四，掌握 Spark DataFrame、Spark SQL 和分布式执行模式的基本使用；第五，能够结合截图、日志、性能数据和理论模型对实验结果进行解释。
+
+\subsubsection{第一部分云计算平台搭建要求}
+
+第一部分的核心任务是完成一套基于华为云 CCE 的云计算平台搭建，满分 50 分。该部分从应用容器化开始，先对 Flask 后端和 Nginx 前端分别编写 Dockerfile，并通过 Docker Compose 在本地验证后端与 Redis 的通信；随后将镜像推送至华为云 SWR 镜像仓库，为云端部署提供镜像来源。在云平台侧，需要创建满足版本要求的 CCE 集群，配置不少于两个 Worker 节点，并通过 kubectl 验证节点均处于 Ready 状态。
+
+应用部署阶段要求将后端、Redis 和前端部署到 CCE 集群中。后端 Deployment 需要设置两个副本，并配置资源请求与限制；Redis 作为内部数据库服务，通过 ClusterIP Service 在集群内提供访问；后端 Service 使用 LoadBalancer 类型并绑定华为云 ELB，从而对外暴露 `/api/ping` 接口。配置管理方面，后端通过 ConfigMap 获取 Redis 地址和端口，通过 Secret 获取敏感密码；存储方面，Redis 通过 PVC 挂载持久化目录，验证 Pod 删除重建后数据不丢失；前端 Nginx 配置则采用 ConfigMap Volume 方式挂载，以体现配置与镜像解耦。最后，后端服务还需要配置 HPA，并通过压测观察副本扩缩容过程。
+
+\subsubsection{第二部分Spark大数据分析方向要求}
+
+第二部分选择任务书中的方向 A：Spark 大数据分析，满分 40 分。该方向要求在 Kubernetes 环境中通过 Spark Operator 运行 Spark 作业，并以 PySpark 为主要工具完成数据清洗、统计查询和性能分析。环境部署部分需要安装 Spark Operator，修改 SparkApplication 模板中的镜像、Executor 数量和内存配置，并运行 WordCount 示例作业，验证 Driver Pod 和 Executor Pod 能够正常创建和完成。
+
+数据处理部分以豆瓣电影评分数据集为分析对象。报告需要给出数据加载过程、DataFrame Schema、前 5 行样例、字段缺失值比例，并至少对两个存在缺失值的字段采用不同清洗策略。统计分析部分要求完成不少于 4 个查询，且必须覆盖 GROUP BY 聚合、ORDER BY Top-N、按时间维度的趋势分析，以及 JOIN 或窗口函数。性能分析部分需要选取一个查询，分别使用 Pandas 单机、PySpark 单 Executor 和 PySpark 双 Executor 运行，记录执行时间并绘制对比图，再结合 Amdahl 定律分析加速比未达到线性增长的原因。
+
+\subsection{小组分工与完成情况}
+
+本课程设计由李欣纯和郑瑞璟共同完成。整体分工遵循“云平台实施”和“应用开发、数据分析及报告整合”并行推进的原则：一方面，由一名成员集中负责 CCE、Kubernetes、PVC、ConfigMap Volume、HPA、Spark Operator 等云端资源，降低多人交叉修改集群配置造成的不一致风险；另一方面，由另一名成员负责应用容器化、镜像构建、Spark 数据清洗、SQL 分析、性能对比和报告主笔，从而保证代码、实验数据和文字材料能够统一整理。两位成员最终工作量按项目实施难度、排错成本、截图整理和报告撰写综合计算，约为 1:1。
+
+\subsubsection{成员分工比例}
+
+小组分工如表 \ref{tab:division-overview} 所示。云平台相关任务依赖真实华为云资源，涉及网络、镜像拉取、Service 绑定、PVC 和 HPA 等运行时问题，环境调试成本较高；Spark 数据分析与报告整理则涉及代码实现、统计结果解释、性能图表绘制和文档排版，分析与表达工作量较大。两部分互相补充，使项目能够在功能实现和报告质量之间保持平衡。
+
+\begin{table}[H]
+  \centering
+  \caption{小组成员分工概览}
+  \label{tab:division-overview}
+  \small
+  \begin{tabular}{p{2.0cm}p{3.7cm}p{6.0cm}p{1.4cm}}
+    \toprule
+    成员 & 主要职责 & 具体工作内容 & 工作量 \\
+    \midrule
+    李欣纯 & 应用开发、数据分析与报告整合 & 负责 Dockerfile 修改、本地联调、镜像构建与推送、Spark 数据清洗、Spark SQL 统计分析、性能对比与 Amdahl 分析，并承担报告结构设计、文字撰写、图表整理和最终排版。 & 约 50\% \\
+    郑瑞璟 & 云平台部署、Kubernetes 运维与云端验证 & 负责 CCE 集群创建、kubectl 配置、Kubernetes 应用部署、Redis 持久化、ConfigMap Volume 挂载、HPA 验证、Spark Operator 环境部署材料准备及云端截图整理。 & 约 50\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{任务完成清单}
+
+根据任务书评分标准，本报告后续章节将按照任务编号逐项展开。第一部分围绕 T1 至 T6 组织，分别对应应用容器化、CCE 集群搭建、应用部署、持久化存储、ConfigMap Volume 挂载和 HPA 弹性伸缩；第二部分围绕 Spark 方向 A-0 至 A-3 组织，分别对应 Spark 环境部署、数据清洗、SQL 统计分析和性能对比。每一项任务均尽量采用“操作目标—关键配置—验证截图—结果分析”的写法，避免只罗列命令而缺少原理解释。
+
+为了直观展示项目当前已经形成的实验材料，图 \ref{fig:overview-compose} 至图 \ref{fig:overview-api-ping} 选取了本地联调、CCE 节点状态和云端接口访问三类代表性截图。这些截图分别对应从本地容器运行到云端集群部署再到公网服务验证的关键路径，能够体现项目不是停留在静态配置层面，而是完成了实际运行和结果验证。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-compose.png}
+  \caption{Docker Compose 本地联调启动成功截图}
+  \label{fig:overview-compose}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-nodes-ready.png}
+  \caption{CCE 集群两个 Worker 节点 Ready 验证截图}
+  \label{fig:overview-nodes-ready}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-api-ping.png}
+  \caption{通过 ELB 公网入口访问后端接口的验证截图}
+  \label{fig:overview-api-ping}
+\end{figure}
+
+\subsubsection{代码仓库与报告材料说明}
+
+本项目的代码与实验材料统一保存在课程设计仓库中。仓库根目录包含 `backend`、`frontend`、`k8s`、`spark`、`figures`、`figures\_A` 等目录，分别用于保存后端应用、前端静态页面、Kubernetes 资源文件、Spark 分析脚本和实验截图。后端部分以 Flask 提供 `/api/ping` 接口，并通过 Redis 验证服务间通信；前端部分基于 Nginx 提供静态页面和反向代理配置；`k8s` 目录保存 Deployment、Service、ConfigMap、Secret、PVC、HPA 等 YAML 文件；`spark` 目录保存 WordCount 示例、SparkApplication 模板和豆瓣电影数据分析脚本。
+
+报告截图主要来自 `figures` 和 `figures\_A` 目录。`figures/T1` 保存应用容器化、本地联调和 SWR 镜像推送相关截图；`figures\_A/T2` 至 `figures\_A/T5` 保存 CCE 集群、应用部署、Redis 持久化和 ConfigMap Volume 挂载相关截图。后续章节将根据任务书验收要求插入截图，并在正文中说明截图反映的关键信息，例如 Pod 状态、Service 类型、ELB 公网 IP、PVC Bound 状态、Redis 数据持久化结果以及接口返回值等。通过这种组织方式，报告正文、代码文件和截图证据之间形成一一对应关系，便于检查和答辩说明。
+
+\section{华为云实验环境}
+
+本章对课程设计使用的华为云实验环境进行说明。按照任务书要求，本项目主要使用华为云 SWR、CCE、OBS 和 ELB 四类服务：SWR 用于保存后端和前端容器镜像；CCE 用于提供托管 Kubernetes 集群；OBS 用于 Spark 大数据分析场景中的数据存储接口；ELB 用于将后端服务以公网入口暴露给外部访问。环境搭建过程不仅决定后续应用能否部署成功，也直接影响截图验收中关于 Kubernetes 版本、Worker 节点数量、节点状态和公网访问能力等关键评分点。
+
+本项目在华为云华北-北京四区域开展实验，创建 CCE Standard 集群 \texttt{cloud-course-cce}，并配套创建 VPC、子网、Worker 节点和负载均衡资源。为了控制代金券消耗，同时满足任务书中不少于两个 Worker 节点和 Kubernetes 版本不低于 1.27 的要求，集群采用按需计费模式，Worker 节点规格选择 2 vCPU / 4 GiB。环境配置完成后，通过 CloudShell 连接集群并执行 \texttt{kubectl get nodes -o wide}、\texttt{kubectl cluster-info} 和 \texttt{kubectl version --client} 等命令进行验证。
+
+\subsection{云服务与资源配置}
+
+本项目使用的主要云服务及其作用如表 \ref{tab:cloud-env-summary} 所示。可以看到，SWR、CCE、OBS 和 ELB 分别对应镜像管理、容器编排、数据存储和公网访问四个层面，共同构成了后续实验的基础环境。
+
+\begin{table}[H]
+  \centering
+  \caption{华为云实验环境资源概览}
+  \label{tab:cloud-env-summary}
+  \small
+  \begin{tabular}{p{2.2cm}p{3.2cm}p{7.2cm}}
+    \toprule
+    云服务 & 本项目用途 & 关键配置或说明 \\
+    \midrule
+    SWR & 容器镜像仓库 & 保存 \texttt{backend:v1} 与 \texttt{frontend:v1} 镜像，为 CCE Deployment 提供镜像来源。 \\
+    CCE & Kubernetes 集群 & 创建 \texttt{cloud-course-cce} 集群，版本为 v1.34，包含 2 个 Worker 节点。 \\
+    OBS & Spark 数据存储接口 & Spark 脚本支持通过 \texttt{s3a://} 路径读取数据；当前报告中 Spark 章节将结合数据分析脚本展开说明。 \\
+    ELB & 公网负载均衡 & 后端 \texttt{backend-svc} 通过共享型公网 ELB 暴露 \texttt{/api/ping} 接口。 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{SWR镜像仓库配置}
+
+SWR 是本项目中连接本地容器构建与云端 Kubernetes 部署的关键环节。后端 Flask 服务和前端 Nginx 服务在本地完成 Docker 镜像构建后，需要推送至华为云 SWR，随后 CCE 节点才能在创建 Pod 时从私有镜像仓库拉取镜像。由于 SWR 镜像仓库通常为私有仓库，后续 Deployment 中还需要结合镜像拉取密钥或 CCE 自动生成的 \texttt{default-secret} 进行鉴权。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/env/env-swr-images.png}
+  \caption{SWR 中 backend 与 frontend 镜像确认截图}
+  \label{fig:env-swr-images}
+\end{figure}
+
+图 \ref{fig:env-swr-images} 展示了成员 A 的 SWR 组织中已经存在 \texttt{backend} 和 \texttt{frontend} 镜像，且镜像标签为 \texttt{v1}。该截图证明云端部署阶段使用的镜像不是临时占位配置，而是已经推送到华为云镜像仓库中的实际镜像资源。后续 T3 应用部署章节将进一步说明 Deployment 如何引用这些镜像地址，以及私有镜像拉取失败时如何通过 \texttt{imagePullSecrets} 解决鉴权问题。
+
+\subsubsection{CCE集群配置}
+
+CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE Standard 集群，集群名称为 \texttt{cloud-course-cce}，区域为华北-北京四，Kubernetes 版本为 v1.34，满足任务书中“集群版本不低于 1.27”的要求。网络方面，集群绑定 VPC \texttt{cloud-course-vpc}，网段为 \texttt{192.168.0.0/16}；子网名称为 \texttt{cloud-course-subnet}，网段为 \texttt{192.168.0.0/24}。节点方面，集群创建 2 个 Worker 节点，节点规格为 \texttt{c9.large.2}，即 2 vCPU / 4 GiB，操作系统为 Ubuntu 22.04.5 LTS，容器运行时为 containerd。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-01-cce-agency.png}
+  \caption{首次使用 CCE 时创建服务委托截图}
+  \label{fig:t2-cce-agency}
+\end{figure}
+
+图 \ref{fig:t2-cce-agency} 显示了首次使用 CCE 时创建服务委托的过程。CCE 作为托管 Kubernetes 服务，需要通过服务委托访问部分云资源，例如负载均衡、存储和网络资源。该步骤是后续自动创建或绑定云端资源的前置条件。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-02-vpc-subnet-config.png}
+  \caption{创建 VPC 与子网配置页面截图}
+  \label{fig:t2-vpc-subnet-config}
+\end{figure}
+
+图 \ref{fig:t2-vpc-subnet-config} 展示了 VPC 和子网的创建配置。VPC 为 CCE 节点、Pod 网络和云端负载均衡提供基础网络隔离环境，子网则决定 Worker 节点实际使用的内网地址范围。本项目使用统一命名的 \texttt{cloud-course-vpc} 和 \texttt{cloud-course-subnet}，便于后续资源定位和排错。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-03-vpc-subnet-created.png}
+  \caption{VPC 与子网创建成功截图}
+  \label{fig:t2-vpc-subnet-created}
+\end{figure}
+
+图 \ref{fig:t2-vpc-subnet-created} 表明 VPC 和子网已经创建完成。该结果说明 CCE 集群创建前的网络基础资源已经就绪，后续 Worker 节点可以加入该网络并获得内网 IP。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-04-vpc-list.png}
+  \caption{VPC 列表中 cloud-course-vpc 状态可用截图}
+  \label{fig:t2-vpc-list}
+\end{figure}
+
+图 \ref{fig:t2-vpc-list} 展示了 VPC 列表中 \texttt{cloud-course-vpc} 处于可用状态。该截图进一步证明网络资源创建成功，并且命名与本报告记录一致。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-05-cce-network-overview.png}
+  \caption{CCE 集群网络配置总览截图}
+  \label{fig:t2-cce-network-overview}
+\end{figure}
+
+图 \ref{fig:t2-cce-network-overview} 展示了 CCE 集群创建时的网络配置总览。该页面用于确认集群绑定的 VPC、子网和容器网络配置是否正确，避免后续 Service、Pod 通信或 ELB 绑定出现网络层面的配置不一致。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-06-cce-network-model.png}
+  \caption{CCE 网络配置中 VPC、子网和容器网络模型截图}
+  \label{fig:t2-cce-network-model}
+\end{figure}
+
+图 \ref{fig:t2-cce-network-model} 进一步展示了 CCE 网络模型配置。该截图说明集群创建时已经明确选择 VPC、子网和容器网络模型，为后续 Pod 网络、Service 访问和集群内部通信提供基础。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-07-cce-basic-summary.png}
+  \caption{CCE 基础配置概要截图}
+  \label{fig:t2-cce-basic-summary}
+\end{figure}
+
+图 \ref{fig:t2-cce-basic-summary} 展示了 CCE 基础配置概要。该截图用于确认集群名称、类型、版本等基础参数，尤其是 Kubernetes 版本信息，是任务书中版本要求的重要支撑材料。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-09-cce-security-summary.png}
+  \caption{CCE 网络与安全服务配置概要截图}
+  \label{fig:t2-cce-security-summary}
+\end{figure}
+
+图 \ref{fig:t2-cce-security-summary} 展示了网络与安全服务相关配置概要。该页面用于确认集群安全组、网络访问和相关云服务配置，为后续节点加入集群和服务暴露提供保障。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-10-cce-plugin-summary.png}
+  \caption{CCE 网络与默认插件配置概要截图}
+  \label{fig:t2-cce-plugin-summary}
+\end{figure}
+
+图 \ref{fig:t2-cce-plugin-summary} 记录了网络配置和默认插件配置概要。CCE 集群中的网络插件、CoreDNS 和存储插件会直接影响 Pod 之间通信、域名解析和 PVC 挂载能力，因此该截图是后续应用部署和 Redis 持久化验证的环境依据。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-11-cce-plugins.png}
+  \caption{CCE 默认必要插件配置截图}
+  \label{fig:t2-cce-plugins}
+\end{figure}
+
+图 \ref{fig:t2-cce-plugins} 展示了 CCE 集群创建时保留的默认必要插件。CoreDNS 用于集群内部服务名解析，Everest 存储插件用于后续 PVC 与云硬盘的对接，容器网络插件用于 Pod 网络通信。这些插件虽然不是业务应用代码的一部分，但它们决定了 Kubernetes 集群是否具备完整的基础能力。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-12-cce-final-confirm.png}
+  \caption{提交创建 CCE 集群前的最终配置确认截图}
+  \label{fig:t2-cce-final-confirm}
+\end{figure}
+
+图 \ref{fig:t2-cce-final-confirm} 是提交创建 CCE 集群前的最终确认页面。该截图集中展示了集群创建前的关键参数，能够作为环境配置与报告记录一致性的证据。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-13-cce-creating.png}
+  \caption{CCE 集群进入创建中状态截图}
+  \label{fig:t2-cce-creating}
+\end{figure}
+
+图 \ref{fig:t2-cce-creating} 显示 CCE 集群创建任务已经提交并进入创建中状态。该截图记录了从配置确认到实际创建的过程，说明环境不是仅停留在配置草稿阶段。
+
+\subsubsection{OBS数据存储配置}
+
+OBS 在任务书中主要服务于 Spark 大数据分析方向，用于保存待分析数据集并通过 \texttt{s3a://} 接口供 Spark 作业读取。本项目的 \texttt{spark/analysis.py} 支持将数据路径作为参数传入，因此既可以读取仓库中的本地 \texttt{douban\_movies.csv}，也可以在云端 Spark 环境中替换为 OBS 路径。由于当前截图文件夹中没有单独保存 OBS 控制台截图，本章不虚构 OBS 页面证据；后续 Spark 大数据分析章节将围绕数据读取方式、SparkApplication 配置和实际分析结果继续说明。
+
+从架构角度看，OBS 与 CCE 的关系并不是直接部署关系，而是作为 Spark 作业的数据源存在。Spark Driver 和 Executor 在运行时通过 S3A 协议访问对象存储中的数据文件，完成 DataFrame 加载、清洗和 SQL 分析。该设计将计算资源和数据存储解耦，符合云计算环境中“存算分离”的基本思想。
+
+\subsubsection{ELB负载均衡配置}
+
+ELB 用于对外暴露后端服务。在 Kubernetes 中，后端 Service 被定义为 \texttt{LoadBalancer} 类型，并通过华为云 ELB 获得公网访问入口。任务书要求通过 ELB 公网 IP 访问 \texttt{/api/ping} 并返回 \texttt{\{"status":"ok"\}}，因此 ELB 是否创建并正常绑定，直接关系到 T3 应用部署验收。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/env/env-elb-config.png}
+  \caption{共享型公网 ELB 创建配置概要截图}
+  \label{fig:env-elb-config}
+\end{figure}
+
+图 \ref{fig:env-elb-config} 展示了共享型公网 ELB 的创建配置。该负载均衡器用于后端 \texttt{backend-svc} 的公网访问入口，后续通过 Service 注解将 ELB 与 Kubernetes Service 绑定。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/env/env-elb-running.png}
+  \caption{ELB 负载均衡器运行中状态截图}
+  \label{fig:env-elb-running}
+\end{figure}
+
+图 \ref{fig:env-elb-running} 显示 ELB 资源已经创建并处于运行中状态。该状态说明公网负载均衡基础资源可用，为后续通过公网 IP 访问后端接口提供环境条件。
+
+\subsection{Kubernetes集群信息}
+
+Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验收内容。根据实验记录，集群创建完成后，通过 CCE 控制台和 CloudShell 分别进行了节点运行状态、kubectl 连接状态和客户端版本检查。相关环境参数如表 \ref{tab:k8s-cluster-info} 所示。
+
+\begin{table}[H]
+  \centering
+  \caption{Kubernetes 集群关键参数}
+  \label{tab:k8s-cluster-info}
+  \small
+  \begin{tabular}{p{4cm}p{8.5cm}}
+    \toprule
+    项目 & 内容 \\
+    \midrule
+    区域 & 华北-北京四 \\
+    集群名称 & \texttt{cloud-course-cce} \\
+    集群类型 & CCE Standard \\
+    计费模式 & 按需计费 \\
+    Kubernetes 版本 & v1.34，节点输出中 VERSION 为 \texttt{v1.34.6-r0-34.0.23} \\
+    Worker 节点数量 & 2 个 \\
+    Worker 节点规格 & \texttt{c9.large.2}，2 vCPU / 4 GiB \\
+    操作系统 & Ubuntu 22.04.5 LTS \\
+    容器运行时 & containerd \\
+    VPC / 子网 & \texttt{cloud-course-vpc} / \texttt{cloud-course-subnet} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{集群版本与节点规格}
+
+集群版本和节点规格决定了后续 Kubernetes 资源是否能够稳定运行。本项目选择 v1.34 版本，显著高于任务书要求的 v1.27 下限；节点采用 2 vCPU / 4 GiB 规格，能够满足 Flask 后端、Redis、Nginx 前端以及基础 Spark Operator 验证的课程设计需求，同时控制云资源成本。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-14-worker-config-1.png}
+  \caption{创建 Worker 节点时的基础规格配置截图}
+  \label{fig:t2-worker-config-1}
+\end{figure}
+
+图 \ref{fig:t2-worker-config-1} 展示了创建 Worker 节点时的基础规格配置。该截图用于证明节点创建不是采用默认未知配置，而是根据课程设计成本与运行需求选择了明确的实例规格。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-15-worker-config-2.png}
+  \caption{创建 Worker 节点时的存储与网络配置截图}
+  \label{fig:t2-worker-config-2}
+\end{figure}
+
+图 \ref{fig:t2-worker-config-2} 展示了 Worker 节点创建过程中的存储与网络配置。该配置影响节点能否正常加入 VPC、能否创建容器运行环境，以及后续是否能够挂载存储卷。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-16-worker-confirm.png}
+  \caption{Worker 节点规格确认页面截图}
+  \label{fig:t2-worker-confirm}
+\end{figure}
+
+图 \ref{fig:t2-worker-confirm} 是 Worker 节点规格确认页面。该截图作为节点数量和规格的控制台证据，与后续 \texttt{kubectl get nodes -o wide} 的命令行证据相互补充。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-17-worker-running.png}
+  \caption{CCE 控制台显示两个 Worker 节点运行中截图}
+  \label{fig:t2-worker-running}
+\end{figure}
+
+图 \ref{fig:t2-worker-running} 显示 CCE 控制台中两个 Worker 节点处于运行中状态。该截图从控制台视角证明节点已创建成功，而不仅是命令行输出中的临时状态。
+
+\subsubsection{kubectl连接与节点状态}
+
+创建集群后，需要配置 kubectl 才能对 Kubernetes 集群执行资源管理操作。本项目使用华为云 CloudShell 配置 kubectl，并通过 \texttt{kubectl get nodes -o wide} 验证两个 Worker 节点均为 Ready。该命令输出同时包含节点名称、状态、角色、版本、内网 IP、操作系统和容器运行时等信息，是任务书 T2 的核心验收截图。
+
+\begin{figure}[H]
+  \centering
+  {\setlength{\fboxsep}{0pt}\setlength{\fboxrule}{1.2pt}\fcolorbox{red}{white}{\includegraphics[width=0.88\textwidth]{assets/report_figures/t2/t2-18-nodes-ready.png}}}
+  \caption{核心验收：kubectl 查看两个 Worker 节点 Ready 状态截图}
+  \label{fig:t2-nodes-ready}
+\end{figure}
+
+图 \ref{fig:t2-nodes-ready} 使用红框突出显示核心验收截图。截图中可以看到两个 Worker 节点的 \texttt{STATUS} 均为 \texttt{Ready}，\texttt{VERSION} 列为 \texttt{v1.34.6-r0-34.0.23}，节点内网 IP 分别为 \texttt{192.168.0.215} 和 \texttt{192.168.0.237}。这说明集群节点已经成功加入 Kubernetes，并且版本满足任务书要求。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-19-cluster-info.png}
+  \caption{kubectl cluster-info 连接集群成功截图}
+  \label{fig:t2-cluster-info}
+\end{figure}
+
+图 \ref{fig:t2-cluster-info} 展示了 \texttt{kubectl cluster-info} 的输出结果。该截图证明 kubectl 已经能够访问 Kubernetes 控制平面，为后续通过 \texttt{kubectl apply} 部署 YAML 资源提供前提条件。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/t2/t2-20-kubectl-version.png}
+  \caption{kubectl 客户端版本信息截图}
+  \label{fig:t2-kubectl-version}
+\end{figure}
+
+图 \ref{fig:t2-kubectl-version} 展示了 CloudShell 中 kubectl 客户端版本信息。该截图说明实验环境中 kubectl 工具可用，且后续对 Pod、Service、PVC 和 HPA 的管理均可通过命令行完成。
+
+\subsubsection{命名空间与资源规划}
+
+本项目基础任务主要使用 Kubernetes 的 \texttt{default} 命名空间，便于课程设计验收时统一查看 Pod、Deployment、Service、ConfigMap、Secret、PVC 和 HPA 等资源。后端 Deployment 命名为 \texttt{backend}，Redis Deployment 命名为 \texttt{redis}，前端 Deployment 命名为 \texttt{frontend}；后端 Service 命名为 \texttt{backend-svc}，Redis Service 命名为 \texttt{redis-svc}，前端 Service 命名为 \texttt{frontend-svc}。配置资源方面，后端使用 \texttt{backend-config} 注入 Redis 地址和端口，使用 \texttt{redis-secret} 保存 Redis 密码字段；持久化存储方面，Redis 使用 \texttt{redis-data-pvc} 申请云硬盘存储。
+
+资源规划遵循以下原则：第一，业务资源命名与任务书中的组件名称保持一致，便于截图识别和答辩说明；第二，敏感配置与非敏感配置分离，分别放入 Secret 和 ConfigMap；第三，对外访问只通过后端 LoadBalancer Service 暴露，Redis 保持 ClusterIP 内部访问，降低不必要的公网暴露风险；第四，后续 Spark Operator 或监控系统如需单独命名空间，将在对应章节中说明。本章环境配置完成后，后续章节即可在该 Kubernetes 集群之上继续完成应用部署、持久化、配置挂载、弹性伸缩和 Spark 大数据分析任务。
+
+\section{第一部分：云计算平台搭建}
+
+本章对应课程设计任务书第一部分“云计算平台搭建”，总分 50 分。该部分以“Flask 后端 API + Redis 数据库 + Nginx 前端页面”为应用对象，完成从本地容器化联调到华为云 CCE 集群部署的全过程。报告按照任务书 T1 至 T6 的顺序组织：T1 说明应用容器化与 SWR 镜像推送；T2 说明 CCE 集群搭建与节点 Ready 验证；T3 说明 Kubernetes 资源部署与公网接口访问；T4 说明 Redis PVC 持久化验证；T5 说明 Nginx 配置以 ConfigMap Volume 形式挂载；T6 说明 HPA 弹性伸缩配置及当前仍需补充的验收截图。
+
+\subsection{任务1：应用容器化}
+
+任务 1 的目标是将后端和前端应用分别容器化，并通过本地联调与 SWR 推送证明镜像可运行、可分发。后端采用 Flask 提供 \verb|/api/ping| 接口，并通过 Redis 客户端验证与 Redis 服务的连接状态；前端采用 Nginx 静态页面，页面中包含学生姓名和学号，满足验收识别要求。完成本地构建后，将 \verb|backend:v1| 和 \verb|frontend:v1| 推送至华为云 SWR，为后续 CCE 部署提供镜像来源。
+
+\subsubsection{后端Dockerfile多阶段构建}
+
+后端 Dockerfile 保留了任务书要求的多阶段构建结构。第一阶段基于 \verb|python:3.11-slim| 安装依赖，并将依赖包安装到 \verb|/build/packages|；第二阶段仍使用轻量级 Python 运行时镜像，只复制依赖包和应用代码，并通过 \verb|PYTHONPATH=/app/packages| 指定依赖搜索路径。该结构将依赖安装过程与运行时环境分离，能够减少运行镜像中不必要的构建缓存和工具链内容。
+
+本项目后端依赖文件中包含 \verb|flask==3.0.0|、\verb|redis==5.0.1| 和 \verb|requests==2.31.0|。其中 \verb|requests| 是在基础模板之外加入的自选 Python 包，满足任务书中“至少加入 1 个自选 Python 包”的要求。
+
+\subsubsection{后端依赖包修改与说明}
+
+后端服务依赖 Flask 提供 HTTP API，依赖 Redis Python 客户端连接 Redis 服务，并额外加入 requests 包以体现依赖扩展能力。虽然当前核心接口主要用于健康检查和 Redis 连接验证，但依赖文件采用固定版本号写法，能够减少镜像构建时由于上游包版本变化导致的不确定性。后端容器暴露 5000 端口，启动命令为 \verb|python app.py|，与 Kubernetes Deployment 中的 \verb|containerPort: 5000| 保持一致。
+
+\subsubsection{前端首页学号姓名标识}
+
+前端 Dockerfile 基于 \verb|nginx:1.25-alpine|，将自定义 \verb|nginx.conf| 复制到 \verb|/etc/nginx/conf.d/default.conf|，并将 \verb|static/| 下的静态页面复制到 Nginx 默认网页目录。前端首页 \verb|index.html| 中写入了姓名“李欣纯”和学号“2023116052”，用于课程设计验收时识别提交者身份。该部分满足任务书中“在 Nginx 默认首页中加入本人学号和姓名”的要求。
+
+\reportfig{assets/report_figures/t1/t1-01-docker-desktop.png}{Docker Desktop 正常运行界面}{fig:t1-docker-desktop}
+
+图 \ref{fig:t1-docker-desktop} 显示 Docker Desktop 已正常运行。本地容器化实验依赖 Docker Engine 提供镜像构建和容器运行能力，该截图证明本地构建环境可用。
+
+\subsubsection{Docker Compose本地联调验证}
+
+本地联调使用 \verb|docker compose up -d --build| 同时启动后端与 Redis 服务。Compose 配置中后端通过环境变量读取 Redis 主机、端口和密码，Redis 使用 \verb|redis:7-alpine| 镜像。联调重点不是仅验证容器能够启动，而是验证后端容器能够通过服务名访问 Redis，并且 \verb|/api/ping| 接口能返回正常状态。
+
+\reportfig{assets/report_figures/t1/t1-02-compose-build-up.png}{执行 docker compose up 构建并启动服务截图}{fig:t1-compose-build-up}
+
+图 \ref{fig:t1-compose-build-up} 展示了执行 \verb|docker compose up -d --build| 后服务启动的过程，说明本地镜像能够完成构建并以容器形式运行。
+
+\reportfig{assets/report_figures/t1/t1-03-compose-running.png}{Docker Compose 服务运行状态截图}{fig:t1-compose-running}
+
+图 \ref{fig:t1-compose-running} 展示了本地 Compose 服务运行状态，后端和 Redis 容器均已启动，为接口访问和后端日志验证提供基础。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t1/t1-04-backend-return.png}{本地访问后端接口返回结果截图}{fig:t1-backend-return}
+
+图 \ref{fig:t1-backend-return} 显示本地访问后端接口后获得响应结果，说明 Flask 后端服务能够对外提供 HTTP 接口。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t1/t1-05-status-ok.png}{接口返回 status ok 验证截图}{fig:t1-status-ok}
+
+图 \ref{fig:t1-status-ok} 进一步显示接口返回中包含正常状态信息，说明后端健康检查接口可用，并为后续 CCE 中通过 ELB 访问 \verb|/api/ping| 提供对照。
+
+\reportfig{assets/report_figures/t1/t1-06-backend-logs.png}{后端日志显示收到请求截图}{fig:t1-backend-logs}
+
+图 \ref{fig:t1-backend-logs} 展示后端日志中收到请求的记录。该截图是本地联调的重要证据，说明浏览器或命令行访问确实到达了后端容器，而不仅是静态页面或缓存结果。
+
+\subsubsection{SWR镜像推送与镜像Tag验证}
+
+本地联调通过后，将后端和前端镜像分别标记为 \verb|v1|，并推送至华为云 SWR。镜像推送完成后，CCE Deployment 中即可引用 SWR 镜像地址创建 Pod。SWR 推送过程是从本地实验过渡到云端部署的关键步骤，若镜像未正确推送或标签不一致，后续 Kubernetes Pod 将无法拉取业务镜像。
+
+\reportfig{assets/report_figures/t1/t1-07-backend-tag.png}{后端镜像标记为 v1 截图}{fig:t1-backend-tag}
+
+图 \ref{fig:t1-backend-tag} 展示后端镜像完成 \verb|v1| 标签标记。该标签与后续 Deployment 中引用的镜像标签保持一致。
+
+\reportfig{assets/report_figures/t1/t1-08-frontend-tag.png}{前端镜像标记为 v1 截图}{fig:t1-frontend-tag}
+
+图 \ref{fig:t1-frontend-tag} 展示前端镜像完成 \verb|v1| 标签标记，说明前端静态页面和 Nginx 配置已经形成可推送的镜像版本。
+
+\reportfig{assets/report_figures/t1/t1-09-swr-list.png}{SWR 控制台镜像列表截图}{fig:t1-swr-list}
+
+图 \ref{fig:t1-swr-list} 显示 SWR 控制台中已经存在相关镜像及 Tag。该截图满足任务书中“SWR 控制台截图需含镜像名称和 Tag”的验收要求。
+
+\subsection{任务2：CCE集群搭建}
+
+任务 2 要求在华为云 CCE 控制台创建 Kubernetes 集群，并配置 kubectl，使至少两个 Worker 节点处于 Ready 状态。本项目已在第二章对 CCE、VPC、子网、Worker 节点、插件和 kubectl 连接过程进行了完整说明，并插入了 T2 的全部环境截图。本节从第一部分评分角度简要归纳验收结论。
+
+\subsubsection{CCE集群创建过程}
+
+本项目在华为云华北-北京四区域创建 CCE Standard 集群 \verb|cloud-course-cce|，并配套创建 VPC \verb|cloud-course-vpc| 和子网 \verb|cloud-course-subnet|。集群创建时保留 CCE 容器网络、CoreDNS 和 Everest 存储等默认必要插件，为后续服务发现、Pod 网络通信和 PVC 挂载提供基础能力。
+
+\subsubsection{Worker节点Ready状态验证}
+
+集群创建完成后，使用 CloudShell 配置 kubectl，并执行 \verb|kubectl get nodes -o wide|。第二章图 \ref{fig:t2-nodes-ready} 中可以看到两个 Worker 节点均处于 \verb|Ready| 状态，说明节点已经成功加入集群并可承载业务 Pod。
+
+\subsubsection{Kubernetes版本要求验证}
+
+节点输出中的 Kubernetes 版本为 \verb|v1.34.6-r0-34.0.23|，高于任务书要求的 1.27 版本下限。节点操作系统为 Ubuntu 22.04.5 LTS，容器运行时为 containerd。由此可见，T2 在节点数量、节点状态和版本要求三个方面均满足验收标准。
+
+\subsection{任务3：应用部署}
+
+任务 3 的目标是将任务 1 中完成的容器镜像部署到 CCE 集群中，并通过 Kubernetes 资源完成服务编排、配置注入、敏感信息管理和公网暴露。本项目部署的主要资源包括 \verb|backend| Deployment、\verb|redis| Deployment、\verb|frontend| Deployment、\verb|backend-svc| LoadBalancer Service、\verb|redis-svc| ClusterIP Service、\verb|backend-config| ConfigMap 和 \verb|redis-secret| Secret。
+
+\reportfig{assets/report_figures/t3/t3-09-before-state.png}{T3 部署前集群资源状态截图}{fig:t3-before-state}
+
+图 \ref{fig:t3-before-state} 展示应用部署前集群资源状态，用于说明部署操作是在已有 CCE 集群基础上进行，而非仅展示最终结果。
+
+\reportfig{assets/report_figures/t3/t3-10-yaml-ready.png}{CloudShell 中 T3 YAML 文件准备完成截图}{fig:t3-yaml-ready}
+
+图 \ref{fig:t3-yaml-ready} 显示 CloudShell 中已准备好 T3 所需 YAML 文件。该截图证明部署使用的是可追溯的 Kubernetes 配置文件。
+
+\reportfig{assets/report_figures/t3/t3-11-yaml-check.png}{T3 关键 YAML 配置检查截图}{fig:t3-yaml-check}
+
+图 \ref{fig:t3-yaml-check} 展示了 T3 关键 YAML 配置检查结果，包括副本数、Service 类型、ELB 注解和 Redis 配置等内容，能够体现部署前对配置正确性的核对。
+
+\reportfig{assets/report_figures/t3/t3-01-yaml-apply.png}{应用 Kubernetes YAML 资源成功截图}{fig:t3-yaml-apply}
+
+图 \ref{fig:t3-yaml-apply} 显示 Kubernetes YAML 资源已成功应用到集群中，是 T3 从配置文件进入实际集群状态的直接证据。
+
+\subsubsection{后端Deployment配置}
+
+后端 Deployment 名称为 \verb|backend|，副本数设置为 2，符合任务书“后端副本数=2”的要求。容器镜像来自华为云 SWR，容器端口为 5000，并配置了资源请求与限制，使调度器能够根据 CPU 和内存需求安排 Pod。后端通过 \verb|configMapRef| 引入 Redis 地址和端口，通过 \verb|secretKeyRef| 引入 Redis 密码字段，实现配置与代码分离。
+
+\subsubsection{Redis Deployment配置}
+
+Redis Deployment 名称为 \verb|redis|，副本数为 1，镜像为 \verb|redis:7-alpine|。Redis 作为后端服务依赖的内部数据组件，不直接暴露公网访问入口，而是通过 ClusterIP Service 在集群内部提供访问。后续 T4 中 Redis 还会挂载 PVC，将数据目录持久化到云硬盘。
+
+\subsubsection{后端LoadBalancer Service配置}
+
+后端 Service 名称为 \verb|backend-svc|，类型为 \verb|LoadBalancer|，对外暴露 80 端口，并转发到后端容器的 5000 端口。由于华为云 CCE 中 LoadBalancer Service 需要与 ELB 资源绑定，本项目在遇到 \verb|EXTERNAL-IP| 长时间 \verb|<pending>| 后，创建共享型公网 ELB 并通过 Service 注解绑定，从而获得公网 IP。
+
+\reportfig{assets/report_figures/t3/t3-12-pending-problem.png}{backend-svc 外部 IP 持续 Pending 问题截图}{fig:t3-pending-problem}
+
+图 \ref{fig:t3-pending-problem} 记录了 \verb|backend-svc| 初始外部 IP 处于 \verb|<pending>| 的问题现象。该截图用于说明部署过程中存在真实排错过程，而不是简单套用模板。
+
+\reportfig{assets/report_figures/t3/t3-04-services-elb.png}{Service 列表与 ELB 公网 IP 截图}{fig:t3-services-elb}
+
+图 \ref{fig:t3-services-elb} 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，并已经获得 ELB 公网 IP。该截图说明公网访问入口已经建立。
+
+\subsubsection{Redis ClusterIP Service配置}
+
+Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口为 6379。该设计符合最小暴露原则：Redis 只需要被后端 Pod 访问，不需要直接暴露到公网。后端通过 ConfigMap 中的 \verb|REDIS_HOST=redis-svc| 和 \verb|REDIS_PORT=6379| 访问 Redis 服务，体现 Kubernetes Service 名称解析和内部服务发现机制。
+
+\subsubsection{ConfigMap与Secret配置}
+
+本项目使用 \verb|backend-config| 保存非敏感配置，包括 Redis 主机名、端口和应用运行环境；使用 \verb|redis-secret| 保存敏感密码字段。ConfigMap 与 Secret 分别承担非敏感配置和敏感配置管理职责，能够避免将环境相关配置写死在镜像中，也符合云原生应用“配置外置化”的实践原则。
+
+\reportfig{assets/report_figures/t3/t3-08-config-secret.png}{ConfigMap 与 Secret 资源存在截图}{fig:t3-config-secret}
+
+图 \ref{fig:t3-config-secret} 显示 \verb|backend-config|、\verb|frontend-nginx-config| 和 \verb|redis-secret| 等资源已经存在，说明配置资源已经部署到集群中。
+
+\subsubsection{Pod运行状态与接口访问验证}
+
+应用部署完成后，通过 \verb|kubectl get pods|、浏览器访问和 curl 命令进行验证。核心验收点包括所有 Pod 处于 Running 状态，以及通过 ELB 公网 IP 访问 \verb|/api/ping| 能够返回正常 JSON 结果。
+
+\reportfig{assets/report_figures/t3/t3-02-pods-running.png}{核心验收：Pod 全部 Running 状态截图}{fig:t3-pods-running}
+
+图 \ref{fig:t3-pods-running} 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中后端有两个副本，符合任务书要求。
+
+\reportfig{assets/report_figures/t3/t3-03-deployments.png}{Deployment 副本数与镜像信息截图}{fig:t3-deployments}
+
+图 \ref{fig:t3-deployments} 展示了 Deployment 副本数和镜像信息，可以看到 backend、frontend 和 redis 的部署状态以及镜像来源。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t3/t3-05-browser-ping.png}{浏览器访问 api/ping 返回正常截图}{fig:t3-browser-ping}
+
+图 \ref{fig:t3-browser-ping} 显示通过浏览器访问公网入口后，后端接口返回正常，说明 ELB 到后端 Service 的访问路径可用。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t3/t3-06-curl-ping.png}{curl 访问 api/ping 返回正常截图}{fig:t3-curl-ping}
+
+图 \ref{fig:t3-curl-ping} 显示命令行访问 \verb|/api/ping| 返回 \verb|{"redis":"connected","status":"ok"}|。该结果不仅说明后端接口可访问，也说明后端能够连接 Redis。
+
+\reportfig{assets/report_figures/t3/t3-07-backend-logs.png}{后端 Pod 日志收到请求截图}{fig:t3-backend-logs}
+
+图 \ref{fig:t3-backend-logs} 展示后端 Pod 日志收到请求并返回 200 状态码，进一步证明公网访问请求最终到达后端业务容器。
+
+\subsection{任务4：持久化存储}
+
+任务 4 要求为 Redis 配置 PVC，并验证 Redis Pod 删除重建后数据不丢失。本项目创建 \verb|redis-data-pvc|，使用华为云 \verb|csi-disk| StorageClass 申请 10Gi 云硬盘，并在 Redis Deployment 中将 PVC 挂载到容器内 \verb|/data| 目录。随后通过写入 \verb|testkey=hello|、删除 Redis Pod、等待新 Pod 重建、再次查询 \verb|testkey| 的方式验证持久化效果。
+
+\reportfig{assets/report_figures/t4/t4-00-apply.png}{Redis PVC 与 Deployment 创建成功截图}{fig:t4-apply}
+
+图 \ref{fig:t4-apply} 显示 Redis PVC 和 Deployment 配置已经成功应用到集群中。
+
+\subsubsection{Redis PVC创建与绑定}
+
+PVC 是 Pod 与底层云硬盘之间的抽象层。通过 PVC，Redis Pod 不直接绑定某一个固定节点上的本地目录，而是使用 Kubernetes 和云平台共同管理的持久化存储资源。这样即使 Pod 被删除并在同一节点或其他可用位置重建，数据仍保存在 PVC 关联的卷中。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-01-pvc-bound.png}{核心验收：Redis PVC Bound 状态截图}{fig:t4-pvc-bound}
+
+图 \ref{fig:t4-pvc-bound} 显示 \verb|redis-data-pvc| 状态为 \verb|Bound|，容量为 10Gi，StorageClass 为 \verb|csi-disk|。这说明 PVC 已成功绑定到底层存储资源。
+
+\subsubsection{Redis Deployment挂载PVC}
+
+Redis Deployment 中定义了名为 \verb|redis-data| 的 volume，并通过 \verb|persistentVolumeClaim| 引用 \verb|redis-data-pvc|；容器中通过 \verb|volumeMounts| 将该卷挂载到 \verb|/data|。Redis 的数据目录因此不再只存在于容器临时文件系统中，而是落到 PVC 对应的持久化存储上。
+
+\reportfig{assets/report_figures/t4/t4-02-pod-volume.png}{Redis Pod 挂载 PVC 详情截图}{fig:t4-pod-volume}
+
+图 \ref{fig:t4-pod-volume} 展示 Redis Pod 的挂载详情，可以看到 \verb|/data| 目录与 PVC 的关联关系，证明 Redis 数据目录已经通过 Volume 挂载到持久化卷。
+
+\subsubsection{Redis测试数据写入}
+
+持久化验证首先需要向 Redis 写入测试数据。实验中进入 Redis Pod，执行 \verb|redis-cli SET testkey "hello"| 写入键值，并立即执行 \verb|GET testkey| 验证写入成功。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-03-set-testkey.png}{核心验收：Redis 写入 testkey 成功截图}{fig:t4-set-testkey}
+
+图 \ref{fig:t4-set-testkey} 显示 Redis 写入 \verb|testkey| 返回 \verb|OK|，并且读取结果为 \verb|hello|。这为后续 Pod 删除后的数据对比提供基准。
+
+\subsubsection{Redis Pod删除与自动重建}
+
+为了模拟 Pod 故障或重建场景，实验中删除当前 Redis Pod。由于 Redis 由 Deployment 管理，删除 Pod 后控制器会自动创建新的 Redis Pod，使实际副本数重新满足期望状态。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-04-delete-pod.png}{核心验收：删除 Redis Pod 触发重建截图}{fig:t4-delete-pod}
+
+图 \ref{fig:t4-delete-pod} 显示旧 Redis Pod 被删除，Deployment 控制器开始触发 Pod 重建过程。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-05-recreated-running.png}{Redis Pod 重建后 Running 状态截图}{fig:t4-recreated-running}
+
+图 \ref{fig:t4-recreated-running} 显示新的 Redis Pod 已重新创建并处于 Running 状态，说明 Deployment 自愈机制生效。
+
+\subsubsection{重建后数据持久化验证}
+
+新 Redis Pod 启动后，再次执行 \verb|GET testkey|。如果 Redis 数据只存在于旧 Pod 的临时文件系统中，则 Pod 删除后该键值会丢失；若 PVC 挂载生效，则新 Pod 仍能从 \verb|/data| 目录读取到原数据。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-06-get-testkey.png}{核心验收：重建后查询 testkey 仍返回 hello 截图}{fig:t4-get-testkey}
+
+图 \ref{fig:t4-get-testkey} 显示新 Pod 中再次查询 \verb|testkey| 仍返回 \verb|hello|。这说明 Redis 数据没有随着 Pod 删除而丢失，PVC 持久化存储配置生效。
+
+\subsection{任务5：ConfigMap Volume挂载}
+
+任务 5 要求将 Nginx 反向代理配置以 ConfigMap Volume 的方式挂载到前端 Pod，而不是通过环境变量传递。该任务的核心是证明配置文件来自 ConfigMap，并且修改 ConfigMap 后能够在 Pod 内文件系统中验证更新结果。本项目使用 \verb|frontend-nginx-config| ConfigMap 保存 Nginx \verb|default.conf|，并在 frontend Deployment 中将其挂载到 \verb|/etc/nginx/conf.d/default.conf|。
+
+\subsubsection{Nginx配置ConfigMap创建}
+
+Nginx 配置文件包含静态页面根目录、默认首页以及 \verb|/api/| 反向代理规则。通过 ConfigMap 保存 Nginx 配置，可以在不重建前端镜像的情况下调整代理目标或新增配置注释，体现配置与镜像分离。
+
+\reportfig{assets/report_figures/t5/t5-01-configmap-content.png}{Nginx 配置 ConfigMap 内容截图}{fig:t5-configmap-content}
+
+图 \ref{fig:t5-configmap-content} 展示 \verb|frontend-nginx-config| 中保存的 Nginx 配置内容，说明配置文件已经以 Kubernetes ConfigMap 的形式存在。
+
+\subsubsection{前端Deployment挂载ConfigMap}
+
+frontend Deployment 中定义了 \verb|nginx-config| volume，volume 来源为 \verb|frontend-nginx-config|，并通过 \verb|volumeMounts| 挂载到 Nginx 默认配置路径。由于本项目使用 \verb|subPath| 挂载单个 \verb|default.conf| 文件，修改 ConfigMap 后需要通过 \verb|kubectl rollout restart deployment frontend| 创建新 Pod，使新 Pod 在启动时重新挂载最新配置。
+
+\reportfig{assets/report_figures/t5/t5-02-deploy-volume-1.png}{前端 Deployment 挂载 ConfigMap 基本信息截图}{fig:t5-deploy-volume-1}
+
+图 \ref{fig:t5-deploy-volume-1} 展示 frontend Deployment 的镜像、挂载路径等信息，说明前端容器使用 ConfigMap 提供 Nginx 配置。
+
+\reportfig{assets/report_figures/t5/t5-03-deploy-volume-2.png}{前端 Deployment Volume 来源为 ConfigMap 截图}{fig:t5-deploy-volume-2}
+
+图 \ref{fig:t5-deploy-volume-2} 进一步显示 volume 来源为 \verb|frontend-nginx-config|，证明挂载关系并非普通空目录或镜像内置文件。
+
+\subsubsection{配置修改后的Pod内文件验证}
+
+实验首先进入 frontend Pod 查看默认 Nginx 配置文件，随后修改 ConfigMap，在配置中加入 \verb|# T5 ConfigMap volume update verified| 标记，重新 apply 并滚动重启 frontend Deployment。最后再次进入新 Pod，查看 \verb|/etc/nginx/conf.d/default.conf|，验证配置文件内容已经更新。
+
+\reportfig{assets/report_figures/t5/t5-04-exec-default-conf.png}{修改前 exec 查看默认 Nginx 配置文件截图}{fig:t5-exec-default-conf}
+
+图 \ref{fig:t5-exec-default-conf} 显示修改前 Pod 内 Nginx 配置文件内容，用于作为 ConfigMap 更新前的对照。
+
+\reportfig{assets/report_figures/t5/t5-05-apply-update.png}{修改 ConfigMap 后重新 apply 成功截图}{fig:t5-apply-update}
+
+图 \ref{fig:t5-apply-update} 显示修改后的 ConfigMap 已重新应用到集群中。
+
+\reportfig{assets/report_figures/t5/t5-06-exec-updated-conf.png}{核心验收：修改后 exec 验证配置文件已更新截图}{fig:t5-exec-updated-conf}
+
+图 \ref{fig:t5-exec-updated-conf} 显示 frontend Deployment 滚动重启后，新 Pod 内的 \verb|default.conf| 已包含更新标记，说明 ConfigMap Volume 挂载和配置更新验证成功。
+
+\reportfig{assets/report_figures/t5/t5-07-pods-running-after-update.png}{ConfigMap 更新后 Pod 全部 Running 截图}{fig:t5-pods-running-after-update}
+
+图 \ref{fig:t5-pods-running-after-update} 显示 ConfigMap 更新和前端滚动重启后，backend、frontend 和 redis Pod 均处于 Running 状态，说明配置更新没有破坏应用整体运行状态。
+
+\subsubsection{Volume挂载与envFrom适用场景对比}
+
+ConfigMap 通过 \verb|envFrom| 注入时，适合传递短小的键值型配置，例如 Redis 主机名、端口、运行环境等；应用读取这些配置通常依赖环境变量，形式简单，适用于启动参数和少量配置项。ConfigMap 通过 Volume 挂载时，适合传递完整配置文件，例如 Nginx 配置、应用配置模板或多行脚本；应用可以像读取普通文件一样读取配置内容，结构更完整，也更适合复杂文本配置。
+
+本项目中后端 Redis 地址和端口属于典型键值配置，因此使用 ConfigMap 环境变量注入；前端 Nginx 反向代理配置属于完整文件，因此使用 ConfigMap Volume 挂载更合适。二者共同体现了 Kubernetes 配置外置化的两种常见方式。
+
+\subsection{任务6：HPA弹性伸缩}
+
+任务 6 要求为后端 Deployment 配置 HPA，并通过压测证明后端 Pod 能够从 1 个扩展到 2 个或更多，停止压测后再缩回 1 个。当前仓库中已经存在 \verb|k8s/backend-hpa.yaml|，但未发现 T6 对应的 metrics-server、HPA 状态、压测、扩容和缩容截图。因此，本节只基于现有 YAML 文件说明 HPA 配置设计，并明确列出后续需要补充的验收材料，不对尚未提供截图的实验结果进行虚构。
+
+\subsubsection{metrics-server可用性验证}
+
+HPA 依赖 metrics-server 提供 CPU、内存等指标数据。任务书要求先执行 \verb|kubectl top nodes| 验证 metrics-server 可用。当前文件夹中没有 \verb|kubectl top nodes| 截图，因此该项截图需要后续补充。建议补充截图时确保输出中包含节点名称、CPU 使用量、CPU 使用率、内存使用量和内存使用率，以证明 HPA 能够获取资源指标。
+
+\subsubsection{后端HPA资源配置}
+
+现有 \verb|backend-hpa.yaml| 使用 \verb|autoscaling/v2| API，HPA 名称为 \verb|backend-hpa|，作用目标为 \verb|backend| Deployment。配置中 \verb|minReplicas=1|、\verb|maxReplicas=4|，CPU 平均利用率目标为 60\%。这与任务书要求一致，表示当后端 Pod 的平均 CPU 利用率持续超过目标阈值时，HPA 控制器会增加副本数，最高扩展到 4 个。
+
+\subsubsection{压测方法与扩容过程截图}
+
+任务书推荐使用 \verb|ab -n 10000 -c 200 http://<ELB_IP>/api/ping| 对后端接口发起并发压测，并在另一个终端中执行 \verb|kubectl get pods -w| 观察后端 Pod 扩容过程。当前文件夹中没有压测过程截图和 Pod 扩容截图，因此该项验收材料仍需补充。补充时建议至少保留两类截图：一是压测命令及其并发请求输出；二是 \verb|kubectl get pods -w| 中 backend Pod 数量从 1 增加到 2 个或更多的时刻。
+
+\subsubsection{停止压测后的缩容过程截图}
+
+停止压测后，HPA 不会立即缩容，而是需要等待指标下降、控制器重新评估以及稳定窗口结束。当前文件夹中没有停止压测后的缩容截图，因此该项也需补充。建议截图中显示 backend Pod 数量回落到 1，并同时保留 \verb|kubectl get hpa| 或 \verb|kubectl describe hpa backend-hpa| 输出，用于解释当前副本数、目标 CPU 利用率和事件记录。
+
+\subsubsection{扩容延迟、冷却时间与降本价值分析}
+
+HPA 扩容存在延迟，主要原因包括 metrics-server 指标采集周期、HPA 控制器评估周期、Deployment 创建新 Pod 的调度与镜像启动时间等。缩容通常比扩容更保守，这是为了避免短时间指标波动导致副本数频繁上下抖动。对于课程设计中的后端服务而言，HPA 的价值在于高负载时自动增加副本保障服务可用性，低负载时自动减少副本降低资源占用和云资源成本。
+
+需要说明的是，由于当前仓库未提供 T6 实际压测和扩缩容截图，本报告在本节中不将 HPA 判定为已完成验收。后续若补充 \verb|kubectl top nodes|、\verb|kubectl get hpa|、压测输出、扩容截图和缩容截图，即可将本节从“配置说明”完善为“完整验收记录”。
+
+\section{第二部分：Spark大数据分析}
+\mbox{}
+\subsection{A-0：Spark环境部署}
+\mbox{}
+\subsubsection{Spark Operator安装}
+\mbox{}
+\subsubsection{SparkApplication YAML参数配置}
+\mbox{}
+\subsubsection{WordCount示例作业提交}
+\mbox{}
+\subsubsection{Driver与Executor Pod完成状态验证}
+\mbox{}
+\subsection{A-1：数据清洗}
+\mbox{}
+\subsubsection{数据集选择与字段说明}
+\mbox{}
+\subsubsection{DataFrame加载与Schema输出}
+\mbox{}
+\subsubsection{前5行数据预览}
+\mbox{}
+\subsubsection{字段缺失值比例统计}
+\mbox{}
+\subsubsection{缺失字段处理策略一}
+\mbox{}
+\subsubsection{缺失字段处理策略二}
+\mbox{}
+\subsubsection{清洗前后行数与统计信息对比}
+\mbox{}
+\subsection{A-2：Spark SQL统计分析}
+\mbox{}
+\subsubsection{查询一：GROUP BY聚合分析}
+\mbox{}
+\subsubsection{查询二：ORDER BY Top-N分析}
+\mbox{}
+\subsubsection{查询三：时间维度趋势分析}
+\mbox{}
+\subsubsection{查询四：JOIN或窗口函数分析}
+\mbox{}
+\subsubsection{统计结果截图与分析说明汇总}
+\mbox{}
+\subsection{A-3：性能对比与Amdahl分析}
+\mbox{}
+\subsubsection{对比查询选择与实验设计}
+\mbox{}
+\subsubsection{Pandas单机执行时间}
+\mbox{}
+\subsubsection{PySpark单Executor执行时间}
+\mbox{}
+\subsubsection{PySpark双Executor执行时间}
+\mbox{}
+\subsubsection{性能对比图绘制}
+\mbox{}
+\subsubsection{Amdahl定律加速比分析}
+\mbox{}
+\subsubsection{非线性加速原因讨论}
+\mbox{}
+\section{问题记录与解决方案}
+\mbox{}
+\subsection{第一部分问题记录}
+\mbox{}
+\subsubsection{镜像构建与推送问题}
+\mbox{}
+\subsubsection{CCE部署与网络访问问题}
+\mbox{}
+\subsubsection{PVC与HPA验证问题}
+\mbox{}
+\subsection{第二部分问题记录}
+\mbox{}
+\subsubsection{Spark作业提交问题}
+\mbox{}
+\subsubsection{OBS或本地数据读取问题}
+\mbox{}
+\subsubsection{性能测试误差问题}
+\mbox{}
+\section{总结与收获}
+\mbox{}
+\subsection{云计算平台搭建总结}
+\mbox{}
+\subsubsection{容器化与Kubernetes部署理解}
+\mbox{}
+\subsubsection{配置分离、持久化与弹性伸缩理解}
+\mbox{}
+\subsection{Spark大数据分析总结}
+\mbox{}
+\subsubsection{分布式数据处理流程理解}
+\mbox{}
+\subsubsection{性能对比与Amdahl定律理解}
+\mbox{}
+\subsection{课程设计反思}
+\mbox{}
+\subsubsection{主要挑战}
+\mbox{}
+\subsubsection{改进方向}
+\mbox{}
+\appendix
+\section{附录：核心配置与代码}
+\mbox{}
+\subsection{Docker相关文件}
+\mbox{}
+\subsubsection{后端Dockerfile}
+\mbox{}
+\subsubsection{前端Dockerfile}
+\mbox{}
+\subsubsection{docker-compose.yml}
+\mbox{}
+\subsection{Kubernetes YAML文件}
+\mbox{}
+\subsubsection{Deployment与Service配置}
+\mbox{}
+\subsubsection{ConfigMap与Secret配置}
+\mbox{}
+\subsubsection{PVC与HPA配置}
+\mbox{}
+\subsection{Spark作业代码}
+\mbox{}
+\subsubsection{wordcount.py}
+\mbox{}
+\subsubsection{analysis.py}
+\mbox{}
+\subsubsection{性能测试脚本}
+\mbox{}
+\section{附录：实验截图索引}
+\mbox{}
+\subsection{第一部分截图索引}
+\mbox{}
+\subsubsection{任务1至任务3截图}
+\mbox{}
+\subsubsection{任务4至任务6截图}
+\mbox{}
+\subsection{第二部分截图索引}
+\mbox{}
+\subsubsection{A-0与A-1截图}
+\mbox{}
+\subsubsection{A-2与A-3截图}
+\mbox{}
+\end{document}
