@@ -12,10 +12,10 @@ jobs:
         run: echo "${{ secrets.HUAWEI_SWR_PASSWORD }}" | docker login swr.cn-north-4.myhuaweicloud.com -u "${{ secrets.HUAWEI_SWR_USERNAME }}" --password-stdin
 
       - name: Pull PySpark image
-        run: docker pull bitnami/spark:3.5.0
+        run: docker pull bitnami/spark:3.5.6
 
       - name: Tag for Huawei SWR
-        run: docker tag bitnami/spark:3.5.0 swr.cn-north-4.myhuaweicloud.com/cloud-course-a/pyspark:3.5.0
+        run: docker tag bitnami/spark:3.5.6 swr.cn-north-4.myhuaweicloud.com/cloud-course-a/pyspark:3.5.6
 
       - name: Push to Huawei SWR
-        run: docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/pyspark:3.5.0
+        run: docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/pyspark:3.5.6
