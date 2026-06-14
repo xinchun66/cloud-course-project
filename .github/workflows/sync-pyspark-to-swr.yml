@@ -1,14 +1,21 @@
-name: Test Spark Image
+name: Sync PySpark Image to My Huawei SWR
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  sync:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Login to Huawei SWR
+        run: echo "${{ secrets.MY_SWR_PASSWORD }}" | docker login swr.cn-north-4.myhuaweicloud.com -u "${{ secrets.MY_SWR_USERNAME }}" --password-stdin
+
       - name: Pull Spark Image
-        run: |
-          docker pull apache/spark:3.5.4
-          docker images
+        run: docker pull apache/spark:3.5.4
+
+      - name: Tag for Huawei SWR
+        run: docker tag apache/spark:3.5.4 swr.cn-north-4.myhuaweicloud.com/xinchunli/pyspark:3.5.4
+
+      - name: Push to Huawei SWR
+        run: docker push swr.cn-north-4.myhuaweicloud.com/xinchunli/pyspark:3.5.4
