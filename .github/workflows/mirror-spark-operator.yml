@@ -1,0 +1,28 @@
+name: Mirror Spark Operator Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Huawei SWR
+        run: |
+          echo "${{ secrets.SWR_PASSWORD }}" | docker login swr.cn-north-4.myhuaweicloud.com \
+            -u "${{ secrets.SWR_USERNAME }}" \
+            --password-stdin
+
+      - name: Pull from GHCR
+        run: |
+          docker pull ghcr.io/kubeflow/spark-operator/controller:2.5.0
+
+      - name: Tag for Huawei SWR
+        run: |
+          docker tag ghcr.io/kubeflow/spark-operator/controller:2.5.0 \
+            swr.cn-north-4.myhuaweicloud.com/cloud-course-a/spark-operator-controller:2.5.0
+
+      - name: Push to Huawei SWR
+        run: |
+          docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/spark-operator-controller:2.5.0
