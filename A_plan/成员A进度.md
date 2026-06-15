@@ -162,6 +162,8 @@ figures_A/A-0/06_SparkApplication完成状态.png
 
 ## 附加题 2 CI/CD 云端部署验证
 
+- [x] 准备 GitHub Actions CI/CD workflow 环境文件。
+- [x] 编写 CI/CD 验证说明和截图清单。
 - [ ] 配合 B 同学确认 CI/CD 流水线构建并推送镜像。
 - [ ] 检查 SWR 镜像 Tag 已更新。
 - [ ] 检查 K8s Deployment 镜像 Tag 已更新。
@@ -170,6 +172,10 @@ figures_A/A-0/06_SparkApplication完成状态.png
 - [ ] 保存 CI/CD 云端验证截图到 `figures_A/C2_CICD/`。
 - [ ] 编写 `figures_A/C2_CICD/C2_CICD说明.md`。
 - [ ] 提交 CI/CD 云端验证截图和说明。
+
+说明：已补充 `.github/workflows/cicd-app-to-swr-cce.yml`，用于对第一部分 backend/frontend 应用执行“代码提交 -> 自动构建镜像 -> 推送成员 A 的 SWR -> 更新 CCE 中 backend/frontend Deployment”的端到端流程。该 workflow 依赖 GitHub Secrets：`CLOUD_COURSE_A_SWR_USERNAME`、`CLOUD_COURSE_A_SWR_PASSWORD` 和 `CCE_KUBE_CONFIG_B64`，不会在仓库中保存明文账号、AK/SK 或 kubeconfig。
+
+已在 `figures_A/C2_CICD/C2_CICD说明.md` 中整理 workflow 阶段、所需环境文件、Secrets 配置、验收截图清单，以及 CI/CD 与 GitOps 概念说明。下一步需要配置 Secrets 并运行 GitHub Actions，运行成功后补充流水线 Passed、SWR 新 Tag、Deployment 新镜像、Pod Running 和接口访问正常截图。
 
 ## 下一步
 

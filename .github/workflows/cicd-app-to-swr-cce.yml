@@ -1,0 +1,79 @@
+name: Build App Images and Deploy to CCE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "k8s/**"
+      - ".github/workflows/cicd-app-to-swr-cce.yml"
+
+env:
+  SWR_REGISTRY: swr.cn-north-4.myhuaweicloud.com
+  SWR_NAMESPACE: cloud-course-a
+  KUBE_NAMESPACE: default
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Login to Huawei SWR
+        run: |
+          echo "${{ secrets.CLOUD_COURSE_A_SWR_PASSWORD }}" | docker login "${SWR_REGISTRY}" \
+            -u "${{ secrets.CLOUD_COURSE_A_SWR_USERNAME }}" \
+            --password-stdin
+
+      - name: Build backend image
+        run: |
+          docker build -t "${SWR_REGISTRY}/${SWR_NAMESPACE}/backend:${IMAGE_TAG}" ./backend
+
+      - name: Build frontend image
+        run: |
+          docker build -t "${SWR_REGISTRY}/${SWR_NAMESPACE}/frontend:${IMAGE_TAG}" ./frontend
+
+      - name: Push backend image
+        run: |
+          docker push "${SWR_REGISTRY}/${SWR_NAMESPACE}/backend:${IMAGE_TAG}"
+
+      - name: Push frontend image
+        run: |
+          docker push "${SWR_REGISTRY}/${SWR_NAMESPACE}/frontend:${IMAGE_TAG}"
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.CCE_KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Update backend Deployment image
+        run: |
+          kubectl -n "${KUBE_NAMESPACE}" set image deployment/backend \
+            backend="${SWR_REGISTRY}/${SWR_NAMESPACE}/backend:${IMAGE_TAG}"
+
+      - name: Update frontend Deployment image
+        run: |
+          kubectl -n "${KUBE_NAMESPACE}" set image deployment/frontend \
+            frontend="${SWR_REGISTRY}/${SWR_NAMESPACE}/frontend:${IMAGE_TAG}"
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n "${KUBE_NAMESPACE}" rollout status deployment/backend --timeout=180s
+          kubectl -n "${KUBE_NAMESPACE}" rollout status deployment/frontend --timeout=180s
+
+      - name: Show deployment images and pods
+        run: |
+          kubectl -n "${KUBE_NAMESPACE}" get deploy backend frontend -o wide
+          kubectl -n "${KUBE_NAMESPACE}" get pods -o wide
