@@ -29,8 +29,8 @@ jobs:
 
       - name: Login to Huawei SWR
         run: |
-          echo "${{ secrets.CLOUD_COURSE_A_SWR_PASSWORD }}" | docker login "${SWR_REGISTRY}" \
-            -u "${{ secrets.CLOUD_COURSE_A_SWR_USERNAME }}" \
+          echo "${{ secrets.SWR_PASSWORD }}" | docker login "${SWR_REGISTRY}" \
+            -u "${{ secrets.SWR_USERNAME }}" \
             --password-stdin
 
       - name: Build backend image

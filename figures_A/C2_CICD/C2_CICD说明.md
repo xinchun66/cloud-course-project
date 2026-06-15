@@ -35,8 +35,8 @@ k8s/backend-hpa.yaml
 
 | Secret 名称 | 作用 |
 |---|---|
-| `CLOUD_COURSE_A_SWR_USERNAME` | 成员 A 的华为云 SWR 登录用户名 |
-| `CLOUD_COURSE_A_SWR_PASSWORD` | 成员 A 的华为云 SWR 登录密码或临时登录密钥 |
+| `SWR_USERNAME` | 成员 A 的华为云 SWR 登录用户名 |
+| `SWR_PASSWORD` | 成员 A 的华为云 SWR 登录密码或临时登录密钥 |
 | `CCE_KUBE_CONFIG_B64` | CCE 集群 kubeconfig 文件的 Base64 编码内容 |
 
 安全要求：不要将 SWR 登录命令、AK/SK、kubeconfig 原文或 Base64 后的 kubeconfig 提交到仓库，也不要放入截图。
