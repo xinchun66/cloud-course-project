@@ -3,3 +3,19 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+datas/
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.xdv
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+

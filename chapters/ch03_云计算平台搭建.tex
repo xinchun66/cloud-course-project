@@ -1,0 +1,285 @@
+\section{第一部分：云计算平台搭建}
+
+本章对应课程设计任务书第一部分“云计算平台搭建”，总分 50 分。该部分以“Flask 后端 API + Redis 数据库 + Nginx 前端页面”为应用对象，完成从本地容器化联调到华为云 CCE 集群部署的全过程。报告按照任务书 T1 至 T6 的顺序组织：T1 说明应用容器化与 SWR 镜像推送；T2 说明 CCE 集群搭建与节点 Ready 验证；T3 说明 Kubernetes 资源部署与公网接口访问；T4 说明 Redis PVC 持久化验证；T5 说明 Nginx 配置以 ConfigMap Volume 形式挂载；T6 说明 HPA 弹性伸缩配置及当前仍需补充的验收截图。
+
+\subsection{任务1：应用容器化}
+
+任务 1 的目标是将后端和前端应用分别容器化，并通过本地联调与 SWR 推送证明镜像可运行、可分发。后端采用 Flask 提供 \verb|/api/ping| 接口，并通过 Redis 客户端验证与 Redis 服务的连接状态；前端采用 Nginx 静态页面，页面中包含学生姓名和学号，满足验收识别要求。完成本地构建后，将 \verb|backend:v1| 和 \verb|frontend:v1| 推送至华为云 SWR，为后续 CCE 部署提供镜像来源。
+
+\subsubsection{后端Dockerfile多阶段构建}
+
+后端 Dockerfile 保留了任务书要求的多阶段构建结构。第一阶段基于 \verb|python:3.11-slim| 安装依赖，并将依赖包安装到 \verb|/build/packages|；第二阶段仍使用轻量级 Python 运行时镜像，只复制依赖包和应用代码，并通过 \verb|PYTHONPATH=/app/packages| 指定依赖搜索路径。该结构将依赖安装过程与运行时环境分离，能够减少运行镜像中不必要的构建缓存和工具链内容。
+
+本项目后端依赖文件中包含 \verb|flask==3.0.0|、\verb|redis==5.0.1| 和 \verb|requests==2.31.0|。其中 \verb|requests| 是在基础模板之外加入的自选 Python 包，满足任务书中“至少加入 1 个自选 Python 包”的要求。
+
+\subsubsection{后端依赖包修改与说明}
+
+后端服务依赖 Flask 提供 HTTP API，依赖 Redis Python 客户端连接 Redis 服务，并额外加入 requests 包以体现依赖扩展能力。虽然当前核心接口主要用于健康检查和 Redis 连接验证，但依赖文件采用固定版本号写法，能够减少镜像构建时由于上游包版本变化导致的不确定性。后端容器暴露 5000 端口，启动命令为 \verb|python app.py|，与 Kubernetes Deployment 中的 \verb|containerPort: 5000| 保持一致。
+
+\subsubsection{前端首页学号姓名标识}
+
+前端 Dockerfile 基于 \verb|nginx:1.25-alpine|，将自定义 \verb|nginx.conf| 复制到 \verb|/etc/nginx/conf.d/default.conf|，并将 \verb|static/| 下的静态页面复制到 Nginx 默认网页目录。前端首页 \verb|index.html| 中写入了姓名“李欣纯”和学号“2023116052”，用于课程设计验收时识别提交者身份。该部分满足任务书中“在 Nginx 默认首页中加入本人学号和姓名”的要求。
+
+\reportfig{assets/report_figures/t1/t1-01-docker-desktop.png}{Docker Desktop 正常运行界面}{fig:t1-docker-desktop}
+
+图 \ref{fig:t1-docker-desktop} 显示 Docker Desktop 已正常运行。本地容器化实验依赖 Docker Engine 提供镜像构建和容器运行能力，该截图证明本地构建环境可用。
+
+\subsubsection{Docker Compose本地联调验证}
+
+本地联调使用 \verb|docker compose up -d --build| 同时启动后端与 Redis 服务。Compose 配置中后端通过环境变量读取 Redis 主机、端口和密码，Redis 使用 \verb|redis:7-alpine| 镜像。联调重点不是仅验证容器能够启动，而是验证后端容器能够通过服务名访问 Redis，并且 \verb|/api/ping| 接口能返回正常状态。
+
+\reportfig{assets/report_figures/t1/t1-02-compose-build-up.png}{执行 docker compose up 构建并启动服务截图}{fig:t1-compose-build-up}
+
+图 \ref{fig:t1-compose-build-up} 展示了执行 \verb|docker compose up -d --build| 后服务启动的过程，说明本地镜像能够完成构建并以容器形式运行。
+
+\reportfig{assets/report_figures/t1/t1-03-compose-running.png}{Docker Compose 服务运行状态截图}{fig:t1-compose-running}
+
+图 \ref{fig:t1-compose-running} 展示了本地 Compose 服务运行状态，后端和 Redis 容器均已启动，为接口访问和后端日志验证提供基础。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t1/t1-04-backend-return.png}{本地访问后端接口返回结果截图}{fig:t1-backend-return}
+
+图 \ref{fig:t1-backend-return} 显示本地访问后端接口后获得响应结果，说明 Flask 后端服务能够对外提供 HTTP 接口。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t1/t1-05-status-ok.png}{接口返回 status ok 验证截图}{fig:t1-status-ok}
+
+图 \ref{fig:t1-status-ok} 进一步显示接口返回中包含正常状态信息，说明后端健康检查接口可用，并为后续 CCE 中通过 ELB 访问 \verb|/api/ping| 提供对照。
+
+\reportfig{assets/report_figures/t1/t1-06-backend-logs.png}{后端日志显示收到请求截图}{fig:t1-backend-logs}
+
+图 \ref{fig:t1-backend-logs} 展示后端日志中收到请求的记录。该截图是本地联调的重要证据，说明浏览器或命令行访问确实到达了后端容器，而不仅是静态页面或缓存结果。
+
+\subsubsection{SWR镜像推送与镜像Tag验证}
+
+本地联调通过后，将后端和前端镜像分别标记为 \verb|v1|，并推送至华为云 SWR。镜像推送完成后，CCE Deployment 中即可引用 SWR 镜像地址创建 Pod。SWR 推送过程是从本地实验过渡到云端部署的关键步骤，若镜像未正确推送或标签不一致，后续 Kubernetes Pod 将无法拉取业务镜像。
+
+\reportfig{assets/report_figures/t1/t1-07-backend-tag.png}{后端镜像标记为 v1 截图}{fig:t1-backend-tag}
+
+图 \ref{fig:t1-backend-tag} 展示后端镜像完成 \verb|v1| 标签标记。该标签与后续 Deployment 中引用的镜像标签保持一致。
+
+\reportfig{assets/report_figures/t1/t1-08-frontend-tag.png}{前端镜像标记为 v1 截图}{fig:t1-frontend-tag}
+
+图 \ref{fig:t1-frontend-tag} 展示前端镜像完成 \verb|v1| 标签标记，说明前端静态页面和 Nginx 配置已经形成可推送的镜像版本。
+
+\reportfig{assets/report_figures/t1/t1-09-swr-list.png}{SWR 控制台镜像列表截图}{fig:t1-swr-list}
+
+图 \ref{fig:t1-swr-list} 显示 SWR 控制台中已经存在相关镜像及 Tag。该截图满足任务书中“SWR 控制台截图需含镜像名称和 Tag”的验收要求。
+
+\subsection{任务2：CCE集群搭建}
+
+任务 2 要求在华为云 CCE 控制台创建 Kubernetes 集群，并配置 kubectl，使至少两个 Worker 节点处于 Ready 状态。本项目已在第二章对 CCE、VPC、子网、Worker 节点、插件和 kubectl 连接过程进行了完整说明，并插入了 T2 的全部环境截图。本节从第一部分评分角度简要归纳验收结论。
+
+\subsubsection{CCE集群创建过程}
+
+本项目在华为云华北-北京四区域创建 CCE Standard 集群 \verb|cloud-course-cce|，并配套创建 VPC \verb|cloud-course-vpc| 和子网 \verb|cloud-course-subnet|。集群创建时保留 CCE 容器网络、CoreDNS 和 Everest 存储等默认必要插件，为后续服务发现、Pod 网络通信和 PVC 挂载提供基础能力。
+
+\subsubsection{Worker节点Ready状态验证}
+
+集群创建完成后，使用 CloudShell 配置 kubectl，并执行 \verb|kubectl get nodes -o wide|。第二章图 \ref{fig:t2-nodes-ready} 中可以看到两个 Worker 节点均处于 \verb|Ready| 状态，说明节点已经成功加入集群并可承载业务 Pod。
+
+\subsubsection{Kubernetes版本要求验证}
+
+节点输出中的 Kubernetes 版本为 \verb|v1.34.6-r0-34.0.23|，高于任务书要求的 1.27 版本下限。节点操作系统为 Ubuntu 22.04.5 LTS，容器运行时为 containerd。由此可见，T2 在节点数量、节点状态和版本要求三个方面均满足验收标准。
+
+\subsection{任务3：应用部署}
+
+任务 3 的目标是将任务 1 中完成的容器镜像部署到 CCE 集群中，并通过 Kubernetes 资源完成服务编排、配置注入、敏感信息管理和公网暴露。本项目部署的主要资源包括 \verb|backend| Deployment、\verb|redis| Deployment、\verb|frontend| Deployment、\verb|backend-svc| LoadBalancer Service、\verb|redis-svc| ClusterIP Service、\verb|backend-config| ConfigMap 和 \verb|redis-secret| Secret。
+
+\reportfig{assets/report_figures/t3/t3-09-before-state.png}{T3 部署前集群资源状态截图}{fig:t3-before-state}
+
+图 \ref{fig:t3-before-state} 展示应用部署前集群资源状态，用于说明部署操作是在已有 CCE 集群基础上进行，而非仅展示最终结果。
+
+\reportfig{assets/report_figures/t3/t3-10-yaml-ready.png}{CloudShell 中 T3 YAML 文件准备完成截图}{fig:t3-yaml-ready}
+
+图 \ref{fig:t3-yaml-ready} 显示 CloudShell 中已准备好 T3 所需 YAML 文件。该截图证明部署使用的是可追溯的 Kubernetes 配置文件。
+
+\reportfig{assets/report_figures/t3/t3-11-yaml-check.png}{T3 关键 YAML 配置检查截图}{fig:t3-yaml-check}
+
+图 \ref{fig:t3-yaml-check} 展示了 T3 关键 YAML 配置检查结果，包括副本数、Service 类型、ELB 注解和 Redis 配置等内容，能够体现部署前对配置正确性的核对。
+
+\reportfig{assets/report_figures/t3/t3-01-yaml-apply.png}{应用 Kubernetes YAML 资源成功截图}{fig:t3-yaml-apply}
+
+图 \ref{fig:t3-yaml-apply} 显示 Kubernetes YAML 资源已成功应用到集群中，是 T3 从配置文件进入实际集群状态的直接证据。
+
+\subsubsection{后端Deployment配置}
+
+后端 Deployment 名称为 \verb|backend|，副本数设置为 2，符合任务书“后端副本数=2”的要求。容器镜像来自华为云 SWR，容器端口为 5000，并配置了资源请求与限制，使调度器能够根据 CPU 和内存需求安排 Pod。后端通过 \verb|configMapRef| 引入 Redis 地址和端口，通过 \verb|secretKeyRef| 引入 Redis 密码字段，实现配置与代码分离。
+
+\subsubsection{Redis Deployment配置}
+
+Redis Deployment 名称为 \verb|redis|，副本数为 1，镜像为 \verb|redis:7-alpine|。Redis 作为后端服务依赖的内部数据组件，不直接暴露公网访问入口，而是通过 ClusterIP Service 在集群内部提供访问。后续 T4 中 Redis 还会挂载 PVC，将数据目录持久化到云硬盘。
+
+\subsubsection{后端LoadBalancer Service配置}
+
+后端 Service 名称为 \verb|backend-svc|，类型为 \verb|LoadBalancer|，对外暴露 80 端口，并转发到后端容器的 5000 端口。由于华为云 CCE 中 LoadBalancer Service 需要与 ELB 资源绑定，本项目在遇到 \verb|EXTERNAL-IP| 长时间 \verb|<pending>| 后，创建共享型公网 ELB 并通过 Service 注解绑定，从而获得公网 IP。
+
+\reportfig{assets/report_figures/t3/t3-12-pending-problem.png}{backend-svc 外部 IP 持续 Pending 问题截图}{fig:t3-pending-problem}
+
+图 \ref{fig:t3-pending-problem} 记录了 \verb|backend-svc| 初始外部 IP 处于 \verb|<pending>| 的问题现象。该截图用于说明部署过程中存在真实排错过程，而不是简单套用模板。
+
+\reportfig{assets/report_figures/t3/t3-04-services-elb.png}{Service 列表与 ELB 公网 IP 截图}{fig:t3-services-elb}
+
+图 \ref{fig:t3-services-elb} 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，并已经获得 ELB 公网 IP。该截图说明公网访问入口已经建立。
+
+\subsubsection{Redis ClusterIP Service配置}
+
+Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口为 6379。该设计符合最小暴露原则：Redis 只需要被后端 Pod 访问，不需要直接暴露到公网。后端通过 ConfigMap 中的 \verb|REDIS_HOST=redis-svc| 和 \verb|REDIS_PORT=6379| 访问 Redis 服务，体现 Kubernetes Service 名称解析和内部服务发现机制。
+
+\subsubsection{ConfigMap与Secret配置}
+
+本项目使用 \verb|backend-config| 保存非敏感配置，包括 Redis 主机名、端口和应用运行环境；使用 \verb|redis-secret| 保存敏感密码字段。ConfigMap 与 Secret 分别承担非敏感配置和敏感配置管理职责，能够避免将环境相关配置写死在镜像中，也符合云原生应用“配置外置化”的实践原则。
+
+\reportfig{assets/report_figures/t3/t3-08-config-secret.png}{ConfigMap 与 Secret 资源存在截图}{fig:t3-config-secret}
+
+图 \ref{fig:t3-config-secret} 显示 \verb|backend-config|、\verb|frontend-nginx-config| 和 \verb|redis-secret| 等资源已经存在，说明配置资源已经部署到集群中。
+
+\subsubsection{Pod运行状态与接口访问验证}
+
+应用部署完成后，通过 \verb|kubectl get pods|、浏览器访问和 curl 命令进行验证。核心验收点包括所有 Pod 处于 Running 状态，以及通过 ELB 公网 IP 访问 \verb|/api/ping| 能够返回正常 JSON 结果。
+
+\reportfig{assets/report_figures/t3/t3-02-pods-running.png}{核心验收：Pod 全部 Running 状态截图}{fig:t3-pods-running}
+
+图 \ref{fig:t3-pods-running} 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中后端有两个副本，符合任务书要求。
+
+\reportfig{assets/report_figures/t3/t3-03-deployments.png}{Deployment 副本数与镜像信息截图}{fig:t3-deployments}
+
+图 \ref{fig:t3-deployments} 展示了 Deployment 副本数和镜像信息，可以看到 backend、frontend 和 redis 的部署状态以及镜像来源。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t3/t3-05-browser-ping.png}{浏览器访问 api/ping 返回正常截图}{fig:t3-browser-ping}
+
+图 \ref{fig:t3-browser-ping} 显示通过浏览器访问公网入口后，后端接口返回正常，说明 ELB 到后端 Service 的访问路径可用。
+
+\reportfig[0.72\textwidth]{assets/report_figures/t3/t3-06-curl-ping.png}{curl 访问 api/ping 返回正常截图}{fig:t3-curl-ping}
+
+图 \ref{fig:t3-curl-ping} 显示命令行访问 \verb|/api/ping| 返回 \verb|{"redis":"connected","status":"ok"}|。该结果不仅说明后端接口可访问，也说明后端能够连接 Redis。
+
+\reportfig{assets/report_figures/t3/t3-07-backend-logs.png}{后端 Pod 日志收到请求截图}{fig:t3-backend-logs}
+
+图 \ref{fig:t3-backend-logs} 展示后端 Pod 日志收到请求并返回 200 状态码，进一步证明公网访问请求最终到达后端业务容器。
+
+\subsection{任务4：持久化存储}
+
+任务 4 要求为 Redis 配置 PVC，并验证 Redis Pod 删除重建后数据不丢失。本项目创建 \verb|redis-data-pvc|，使用华为云 \verb|csi-disk| StorageClass 申请 10Gi 云硬盘，并在 Redis Deployment 中将 PVC 挂载到容器内 \verb|/data| 目录。随后通过写入 \verb|testkey=hello|、删除 Redis Pod、等待新 Pod 重建、再次查询 \verb|testkey| 的方式验证持久化效果。
+
+\reportfig{assets/report_figures/t4/t4-00-apply.png}{Redis PVC 与 Deployment 创建成功截图}{fig:t4-apply}
+
+图 \ref{fig:t4-apply} 显示 Redis PVC 和 Deployment 配置已经成功应用到集群中。
+
+\subsubsection{Redis PVC创建与绑定}
+
+PVC 是 Pod 与底层云硬盘之间的抽象层。通过 PVC，Redis Pod 不直接绑定某一个固定节点上的本地目录，而是使用 Kubernetes 和云平台共同管理的持久化存储资源。这样即使 Pod 被删除并在同一节点或其他可用位置重建，数据仍保存在 PVC 关联的卷中。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-01-pvc-bound.png}{核心验收：Redis PVC Bound 状态截图}{fig:t4-pvc-bound}
+
+图 \ref{fig:t4-pvc-bound} 显示 \verb|redis-data-pvc| 状态为 \verb|Bound|，容量为 10Gi，StorageClass 为 \verb|csi-disk|。这说明 PVC 已成功绑定到底层存储资源。
+
+\subsubsection{Redis Deployment挂载PVC}
+
+Redis Deployment 中定义了名为 \verb|redis-data| 的 volume，并通过 \verb|persistentVolumeClaim| 引用 \verb|redis-data-pvc|；容器中通过 \verb|volumeMounts| 将该卷挂载到 \verb|/data|。Redis 的数据目录因此不再只存在于容器临时文件系统中，而是落到 PVC 对应的持久化存储上。
+
+\reportfig{assets/report_figures/t4/t4-02-pod-volume.png}{Redis Pod 挂载 PVC 详情截图}{fig:t4-pod-volume}
+
+图 \ref{fig:t4-pod-volume} 展示 Redis Pod 的挂载详情，可以看到 \verb|/data| 目录与 PVC 的关联关系，证明 Redis 数据目录已经通过 Volume 挂载到持久化卷。
+
+\subsubsection{Redis测试数据写入}
+
+持久化验证首先需要向 Redis 写入测试数据。实验中进入 Redis Pod，执行 \verb|redis-cli SET testkey "hello"| 写入键值，并立即执行 \verb|GET testkey| 验证写入成功。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-03-set-testkey.png}{核心验收：Redis 写入 testkey 成功截图}{fig:t4-set-testkey}
+
+图 \ref{fig:t4-set-testkey} 显示 Redis 写入 \verb|testkey| 返回 \verb|OK|，并且读取结果为 \verb|hello|。这为后续 Pod 删除后的数据对比提供基准。
+
+\subsubsection{Redis Pod删除与自动重建}
+
+为了模拟 Pod 故障或重建场景，实验中删除当前 Redis Pod。由于 Redis 由 Deployment 管理，删除 Pod 后控制器会自动创建新的 Redis Pod，使实际副本数重新满足期望状态。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-04-delete-pod.png}{核心验收：删除 Redis Pod 触发重建截图}{fig:t4-delete-pod}
+
+图 \ref{fig:t4-delete-pod} 显示旧 Redis Pod 被删除，Deployment 控制器开始触发 Pod 重建过程。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-05-recreated-running.png}{Redis Pod 重建后 Running 状态截图}{fig:t4-recreated-running}
+
+图 \ref{fig:t4-recreated-running} 显示新的 Redis Pod 已重新创建并处于 Running 状态，说明 Deployment 自愈机制生效。
+
+\subsubsection{重建后数据持久化验证}
+
+新 Redis Pod 启动后，再次执行 \verb|GET testkey|。如果 Redis 数据只存在于旧 Pod 的临时文件系统中，则 Pod 删除后该键值会丢失；若 PVC 挂载生效，则新 Pod 仍能从 \verb|/data| 目录读取到原数据。
+
+\reportfig[0.82\textwidth]{assets/report_figures/t4/t4-06-get-testkey.png}{核心验收：重建后查询 testkey 仍返回 hello 截图}{fig:t4-get-testkey}
+
+图 \ref{fig:t4-get-testkey} 显示新 Pod 中再次查询 \verb|testkey| 仍返回 \verb|hello|。这说明 Redis 数据没有随着 Pod 删除而丢失，PVC 持久化存储配置生效。
+
+\subsection{任务5：ConfigMap Volume挂载}
+
+任务 5 要求将 Nginx 反向代理配置以 ConfigMap Volume 的方式挂载到前端 Pod，而不是通过环境变量传递。该任务的核心是证明配置文件来自 ConfigMap，并且修改 ConfigMap 后能够在 Pod 内文件系统中验证更新结果。本项目使用 \verb|frontend-nginx-config| ConfigMap 保存 Nginx \verb|default.conf|，并在 frontend Deployment 中将其挂载到 \verb|/etc/nginx/conf.d/default.conf|。
+
+\subsubsection{Nginx配置ConfigMap创建}
+
+Nginx 配置文件包含静态页面根目录、默认首页以及 \verb|/api/| 反向代理规则。通过 ConfigMap 保存 Nginx 配置，可以在不重建前端镜像的情况下调整代理目标或新增配置注释，体现配置与镜像分离。
+
+\reportfig{assets/report_figures/t5/t5-01-configmap-content.png}{Nginx 配置 ConfigMap 内容截图}{fig:t5-configmap-content}
+
+图 \ref{fig:t5-configmap-content} 展示 \verb|frontend-nginx-config| 中保存的 Nginx 配置内容，说明配置文件已经以 Kubernetes ConfigMap 的形式存在。
+
+\subsubsection{前端Deployment挂载ConfigMap}
+
+frontend Deployment 中定义了 \verb|nginx-config| volume，volume 来源为 \verb|frontend-nginx-config|，并通过 \verb|volumeMounts| 挂载到 Nginx 默认配置路径。由于本项目使用 \verb|subPath| 挂载单个 \verb|default.conf| 文件，修改 ConfigMap 后需要通过 \verb|kubectl rollout restart deployment frontend| 创建新 Pod，使新 Pod 在启动时重新挂载最新配置。
+
+\reportfig{assets/report_figures/t5/t5-02-deploy-volume-1.png}{前端 Deployment 挂载 ConfigMap 基本信息截图}{fig:t5-deploy-volume-1}
+
+图 \ref{fig:t5-deploy-volume-1} 展示 frontend Deployment 的镜像、挂载路径等信息，说明前端容器使用 ConfigMap 提供 Nginx 配置。
+
+\reportfig{assets/report_figures/t5/t5-03-deploy-volume-2.png}{前端 Deployment Volume 来源为 ConfigMap 截图}{fig:t5-deploy-volume-2}
+
+图 \ref{fig:t5-deploy-volume-2} 进一步显示 volume 来源为 \verb|frontend-nginx-config|，证明挂载关系并非普通空目录或镜像内置文件。
+
+\subsubsection{配置修改后的Pod内文件验证}
+
+实验首先进入 frontend Pod 查看默认 Nginx 配置文件，随后修改 ConfigMap，在配置中加入 \verb|# T5 ConfigMap volume update verified| 标记，重新 apply 并滚动重启 frontend Deployment。最后再次进入新 Pod，查看 \verb|/etc/nginx/conf.d/default.conf|，验证配置文件内容已经更新。
+
+\reportfig{assets/report_figures/t5/t5-04-exec-default-conf.png}{修改前 exec 查看默认 Nginx 配置文件截图}{fig:t5-exec-default-conf}
+
+图 \ref{fig:t5-exec-default-conf} 显示修改前 Pod 内 Nginx 配置文件内容，用于作为 ConfigMap 更新前的对照。
+
+\reportfig{assets/report_figures/t5/t5-05-apply-update.png}{修改 ConfigMap 后重新 apply 成功截图}{fig:t5-apply-update}
+
+图 \ref{fig:t5-apply-update} 显示修改后的 ConfigMap 已重新应用到集群中。
+
+\reportfig{assets/report_figures/t5/t5-06-exec-updated-conf.png}{核心验收：修改后 exec 验证配置文件已更新截图}{fig:t5-exec-updated-conf}
+
+图 \ref{fig:t5-exec-updated-conf} 显示 frontend Deployment 滚动重启后，新 Pod 内的 \verb|default.conf| 已包含更新标记，说明 ConfigMap Volume 挂载和配置更新验证成功。
+
+\reportfig{assets/report_figures/t5/t5-07-pods-running-after-update.png}{ConfigMap 更新后 Pod 全部 Running 截图}{fig:t5-pods-running-after-update}
+
+图 \ref{fig:t5-pods-running-after-update} 显示 ConfigMap 更新和前端滚动重启后，backend、frontend 和 redis Pod 均处于 Running 状态，说明配置更新没有破坏应用整体运行状态。
+
+\subsubsection{Volume挂载与envFrom适用场景对比}
+
+ConfigMap 通过 \verb|envFrom| 注入时，适合传递短小的键值型配置，例如 Redis 主机名、端口、运行环境等；应用读取这些配置通常依赖环境变量，形式简单，适用于启动参数和少量配置项。ConfigMap 通过 Volume 挂载时，适合传递完整配置文件，例如 Nginx 配置、应用配置模板或多行脚本；应用可以像读取普通文件一样读取配置内容，结构更完整，也更适合复杂文本配置。
+
+本项目中后端 Redis 地址和端口属于典型键值配置，因此使用 ConfigMap 环境变量注入；前端 Nginx 反向代理配置属于完整文件，因此使用 ConfigMap Volume 挂载更合适。二者共同体现了 Kubernetes 配置外置化的两种常见方式。
+
+\subsection{任务6：HPA弹性伸缩}
+
+任务 6 要求为后端 Deployment 配置 HPA，并通过压测证明后端 Pod 能够从 1 个扩展到 2 个或更多，停止压测后再缩回 1 个。当前仓库中已经存在 \verb|k8s/backend-hpa.yaml|，但未发现 T6 对应的 metrics-server、HPA 状态、压测、扩容和缩容截图。因此，本节只基于现有 YAML 文件说明 HPA 配置设计，并明确列出后续需要补充的验收材料，不对尚未提供截图的实验结果进行虚构。
+
+\subsubsection{metrics-server可用性验证}
+
+HPA 依赖 metrics-server 提供 CPU、内存等指标数据。任务书要求先执行 \verb|kubectl top nodes| 验证 metrics-server 可用。当前文件夹中没有 \verb|kubectl top nodes| 截图，因此该项截图需要后续补充。建议补充截图时确保输出中包含节点名称、CPU 使用量、CPU 使用率、内存使用量和内存使用率，以证明 HPA 能够获取资源指标。
+
+\subsubsection{后端HPA资源配置}
+
+现有 \verb|backend-hpa.yaml| 使用 \verb|autoscaling/v2| API，HPA 名称为 \verb|backend-hpa|，作用目标为 \verb|backend| Deployment。配置中 \verb|minReplicas=1|、\verb|maxReplicas=4|，CPU 平均利用率目标为 60\%。这与任务书要求一致，表示当后端 Pod 的平均 CPU 利用率持续超过目标阈值时，HPA 控制器会增加副本数，最高扩展到 4 个。
+
+\subsubsection{压测方法与扩容过程截图}
+
+任务书推荐使用 \verb|ab -n 10000 -c 200 http://<ELB_IP>/api/ping| 对后端接口发起并发压测，并在另一个终端中执行 \verb|kubectl get pods -w| 观察后端 Pod 扩容过程。当前文件夹中没有压测过程截图和 Pod 扩容截图，因此该项验收材料仍需补充。补充时建议至少保留两类截图：一是压测命令及其并发请求输出；二是 \verb|kubectl get pods -w| 中 backend Pod 数量从 1 增加到 2 个或更多的时刻。
+
+\subsubsection{停止压测后的缩容过程截图}
+
+停止压测后，HPA 不会立即缩容，而是需要等待指标下降、控制器重新评估以及稳定窗口结束。当前文件夹中没有停止压测后的缩容截图，因此该项也需补充。建议截图中显示 backend Pod 数量回落到 1，并同时保留 \verb|kubectl get hpa| 或 \verb|kubectl describe hpa backend-hpa| 输出，用于解释当前副本数、目标 CPU 利用率和事件记录。
+
+\subsubsection{扩容延迟、冷却时间与降本价值分析}
+
+HPA 扩容存在延迟，主要原因包括 metrics-server 指标采集周期、HPA 控制器评估周期、Deployment 创建新 Pod 的调度与镜像启动时间等。缩容通常比扩容更保守，这是为了避免短时间指标波动导致副本数频繁上下抖动。对于课程设计中的后端服务而言，HPA 的价值在于高负载时自动增加副本保障服务可用性，低负载时自动减少副本降低资源占用和云资源成本。
+
+需要说明的是，由于当前仓库未提供 T6 实际压测和扩缩容截图，本报告在本节中不将 HPA 判定为已完成验收。后续若补充 \verb|kubectl top nodes|、\verb|kubectl get hpa|、压测输出、扩容截图和缩容截图，即可将本节从“配置说明”完善为“完整验收记录”。

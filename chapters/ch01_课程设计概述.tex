@@ -1,0 +1,80 @@
+\section{课程设计概述}
+\subsection{设计目标与任务要求}
+
+本课程设计围绕云计算平台搭建与并行编程实战两条主线展开，目标是在真实云平台环境中完成从应用容器化、镜像仓库管理、Kubernetes 集群部署，到分布式数据分析与性能评价的完整实践。与单纯的本地实验不同，本项目要求将课堂中涉及的容器、服务发现、负载均衡、持久化存储、配置分离、弹性伸缩和分布式计算等概念，落实到华为云 CCE、SWR、ELB、OBS 等具体服务之上。因此，本报告不只记录操作过程，也重点说明各组件之间的关系、关键配置的作用以及实验验证的依据。
+
+根据任务书要求，课程设计总成绩由云计算平台搭建、并行编程实战和报告质量三部分构成。其中，第一部分要求在华为云 CCE 上部署 Flask 后端 API、Redis 数据库和 Nginx 前端页面，并完成对外暴露、数据持久化、ConfigMap Volume 挂载和 HPA 弹性伸缩验证；第二部分选择方向 A，即 Spark 大数据分析，围绕豆瓣电影数据集完成 Spark Operator 环境部署、数据清洗、Spark SQL 统计分析以及 Pandas 与 PySpark 的性能对比；报告部分则要求结构完整、截图清晰、分析充分，并附上核心代码和配置文件。
+
+\subsubsection{课程设计总体目标}
+
+本项目的总体目标可以概括为“构建一套可运行、可验证、可分析的云原生课程设计系统”。在平台层面，项目以容器化 Web 应用为载体，将后端服务、缓存数据库和前端静态服务分别构建为容器镜像，并通过 Kubernetes Deployment、Service、ConfigMap、Secret、PVC 和 HPA 等资源完成部署与治理。在数据计算层面，项目选择 Spark 大数据分析方向，利用 PySpark 对电影数据进行清洗、聚合统计、趋势分析和性能测试，体现云平台对并行计算任务的支撑能力。
+
+从能力训练角度看，本课程设计主要覆盖以下目标：第一，掌握 Docker 镜像构建、Docker Compose 本地联调和 SWR 镜像推送流程；第二，掌握 CCE 集群创建、kubectl 连接、Pod 与 Service 状态检查等 Kubernetes 基础操作；第三，理解 ConfigMap、Secret、PVC、LoadBalancer、HPA 等资源在云原生应用中的作用；第四，掌握 Spark DataFrame、Spark SQL 和分布式执行模式的基本使用；第五，能够结合截图、日志、性能数据和理论模型对实验结果进行解释。
+
+\subsubsection{第一部分云计算平台搭建要求}
+
+第一部分的核心任务是完成一套基于华为云 CCE 的云计算平台搭建，满分 50 分。该部分从应用容器化开始，先对 Flask 后端和 Nginx 前端分别编写 Dockerfile，并通过 Docker Compose 在本地验证后端与 Redis 的通信；随后将镜像推送至华为云 SWR 镜像仓库，为云端部署提供镜像来源。在云平台侧，需要创建满足版本要求的 CCE 集群，配置不少于两个 Worker 节点，并通过 kubectl 验证节点均处于 Ready 状态。
+
+应用部署阶段要求将后端、Redis 和前端部署到 CCE 集群中。后端 Deployment 需要设置两个副本，并配置资源请求与限制；Redis 作为内部数据库服务，通过 ClusterIP Service 在集群内提供访问；后端 Service 使用 LoadBalancer 类型并绑定华为云 ELB，从而对外暴露 `/api/ping` 接口。配置管理方面，后端通过 ConfigMap 获取 Redis 地址和端口，通过 Secret 获取敏感密码；存储方面，Redis 通过 PVC 挂载持久化目录，验证 Pod 删除重建后数据不丢失；前端 Nginx 配置则采用 ConfigMap Volume 方式挂载，以体现配置与镜像解耦。最后，后端服务还需要配置 HPA，并通过压测观察副本扩缩容过程。
+
+\subsubsection{第二部分Spark大数据分析方向要求}
+
+第二部分选择任务书中的方向 A：Spark 大数据分析，满分 40 分。该方向要求在 Kubernetes 环境中通过 Spark Operator 运行 Spark 作业，并以 PySpark 为主要工具完成数据清洗、统计查询和性能分析。环境部署部分需要安装 Spark Operator，修改 SparkApplication 模板中的镜像、Executor 数量和内存配置，并运行 WordCount 示例作业，验证 Driver Pod 和 Executor Pod 能够正常创建和完成。
+
+数据处理部分以豆瓣电影评分数据集为分析对象。报告需要给出数据加载过程、DataFrame Schema、前 5 行样例、字段缺失值比例，并至少对两个存在缺失值的字段采用不同清洗策略。统计分析部分要求完成不少于 4 个查询，且必须覆盖 GROUP BY 聚合、ORDER BY Top-N、按时间维度的趋势分析，以及 JOIN 或窗口函数。性能分析部分需要选取一个查询，分别使用 Pandas 单机、PySpark 单 Executor 和 PySpark 双 Executor 运行，记录执行时间并绘制对比图，再结合 Amdahl 定律分析加速比未达到线性增长的原因。
+
+\subsection{小组分工与完成情况}
+
+本课程设计由李欣纯和郑瑞璟共同完成。整体分工遵循“云平台实施”和“应用开发、数据分析及报告整合”并行推进的原则：一方面，由一名成员集中负责 CCE、Kubernetes、PVC、ConfigMap Volume、HPA、Spark Operator 等云端资源，降低多人交叉修改集群配置造成的不一致风险；另一方面，由另一名成员负责应用容器化、镜像构建、Spark 数据清洗、SQL 分析、性能对比和报告主笔，从而保证代码、实验数据和文字材料能够统一整理。两位成员最终工作量按项目实施难度、排错成本、截图整理和报告撰写综合计算，约为 1:1。
+
+\subsubsection{成员分工比例}
+
+小组分工如表 \ref{tab:division-overview} 所示。云平台相关任务依赖真实华为云资源，涉及网络、镜像拉取、Service 绑定、PVC 和 HPA 等运行时问题，环境调试成本较高；Spark 数据分析与报告整理则涉及代码实现、统计结果解释、性能图表绘制和文档排版，分析与表达工作量较大。两部分互相补充，使项目能够在功能实现和报告质量之间保持平衡。
+
+\begin{table}[H]
+  \centering
+  \caption{小组成员分工概览}
+  \label{tab:division-overview}
+  \small
+  \begin{tabular}{p{2.0cm}p{3.7cm}p{6.0cm}p{1.4cm}}
+    \toprule
+    成员 & 主要职责 & 具体工作内容 & 工作量 \\
+    \midrule
+    李欣纯 & 应用开发、数据分析与报告整合 & 负责 Dockerfile 修改、本地联调、镜像构建与推送、Spark 数据清洗、Spark SQL 统计分析、性能对比与 Amdahl 分析，并承担报告结构设计、文字撰写、图表整理和最终排版。 & 约 50\% \\
+    郑瑞璟 & 云平台部署、Kubernetes 运维与云端验证 & 负责 CCE 集群创建、kubectl 配置、Kubernetes 应用部署、Redis 持久化、ConfigMap Volume 挂载、HPA 验证、Spark Operator 环境部署材料准备及云端截图整理。 & 约 50\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{任务完成清单}
+
+根据任务书评分标准，本报告后续章节将按照任务编号逐项展开。第一部分围绕 T1 至 T6 组织，分别对应应用容器化、CCE 集群搭建、应用部署、持久化存储、ConfigMap Volume 挂载和 HPA 弹性伸缩；第二部分围绕 Spark 方向 A-0 至 A-3 组织，分别对应 Spark 环境部署、数据清洗、SQL 统计分析和性能对比。每一项任务均尽量采用“操作目标—关键配置—验证截图—结果分析”的写法，避免只罗列命令而缺少原理解释。
+
+为了直观展示项目当前已经形成的实验材料，图 \ref{fig:overview-compose} 至图 \ref{fig:overview-api-ping} 选取了本地联调、CCE 节点状态和云端接口访问三类代表性截图。这些截图分别对应从本地容器运行到云端集群部署再到公网服务验证的关键路径，能够体现项目不是停留在静态配置层面，而是完成了实际运行和结果验证。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-compose.png}
+  \caption{Docker Compose 本地联调启动成功截图}
+  \label{fig:overview-compose}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-nodes-ready.png}
+  \caption{CCE 集群两个 Worker 节点 Ready 验证截图}
+  \label{fig:overview-nodes-ready}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{assets/report_figures/overview-api-ping.png}
+  \caption{通过 ELB 公网入口访问后端接口的验证截图}
+  \label{fig:overview-api-ping}
+\end{figure}
+
+\subsubsection{代码仓库与报告材料说明}
+
+本项目的代码与实验材料统一保存在课程设计仓库中。仓库根目录包含 `backend`、`frontend`、`k8s`、`spark`、`figures`、`figures\_A` 等目录，分别用于保存后端应用、前端静态页面、Kubernetes 资源文件、Spark 分析脚本和实验截图。后端部分以 Flask 提供 `/api/ping` 接口，并通过 Redis 验证服务间通信；前端部分基于 Nginx 提供静态页面和反向代理配置；`k8s` 目录保存 Deployment、Service、ConfigMap、Secret、PVC、HPA 等 YAML 文件；`spark` 目录保存 WordCount 示例、SparkApplication 模板和豆瓣电影数据分析脚本。
+
+报告截图主要来自 `figures` 和 `figures\_A` 目录。`figures/T1` 保存应用容器化、本地联调和 SWR 镜像推送相关截图；`figures\_A/T2` 至 `figures\_A/T5` 保存 CCE 集群、应用部署、Redis 持久化和 ConfigMap Volume 挂载相关截图。后续章节将根据任务书验收要求插入截图，并在正文中说明截图反映的关键信息，例如 Pod 状态、Service 类型、ELB 公网 IP、PVC Bound 状态、Redis 数据持久化结果以及接口返回值等。通过这种组织方式，报告正文、代码文件和截图证据之间形成一一对应关系，便于检查和答辩说明。
