@@ -9,7 +9,7 @@
 | [x] | T4 Redis 持久化存储 | 已完成，已提交 `figures_A/T4` 截图。 |
 | [x] | T5 ConfigMap Volume 挂载 | 已完成，已提交 `figures_A/T5` 截图和说明。 |
 | [x] | T6 HPA 弹性伸缩 | 已完成，已提交 `figures_A/T6` 截图和说明。 |
-| [ ] | A-0 Spark Operator 环境部署 | 未开始。 |
+| [x] | A-0 Spark Operator 环境部署 | 已完成，已提交 `figures_A/A-0` 截图和说明。 |
 | [ ] | 附加题 1 Prometheus + Grafana 监控系统 | 未开始。 |
 | [ ] | 附加题 2 CI/CD 云端部署验证 | 未开始。 |
 
@@ -119,15 +119,30 @@ figures_A/T6/08_【验收】Pod数量缩回1个.png
 
 ## A-0 Spark Operator 环境部署
 
-- [ ] 获取或确认 Spark Operator 安装方式。
-- [ ] 安装 Spark Operator。
-- [ ] 检查 `spark/sparkapplication.yaml` 的镜像地址和 executor 参数。
-- [ ] 提交 SparkApplication。
-- [ ] 执行 `kubectl get pods`，确认 Driver 和 Executor Pod。
-- [ ] 查看 Driver 日志，确认作业完成。
-- [ ] 保存 A-0 截图到 `figures_A/A0/`。
-- [ ] 编写 `figures_A/A0/A0说明.md`。
-- [ ] 提交 A-0 截图和说明。
+- [x] 获取或确认 Spark Operator 安装方式。
+- [x] 安装 Spark Operator。
+- [x] 检查 `sparkapplication-a0.yaml` 的镜像地址和 executor 参数。
+- [x] 提交 SparkApplication。
+- [x] 执行 `kubectl get pods`，确认 Driver 和两个 Executor Pod。
+- [x] 查看 Driver 日志，确认 WordCount 作业完成。
+- [x] 保存 A-0 截图到 `figures_A/A-0/`。
+- [x] 编写 `figures_A/A-0/A0说明.md`。
+- [x] 提交 A-0 截图和说明。
+
+说明：A-0 中先完成 Spark Operator 部署。由于默认 Operator 镜像 `ghcr.io/kubeflow/spark-operator/controller:2.5.0` 拉取失败，将 `spark-operator-controller` 和 `spark-operator-webhook` 两个 Deployment 镜像切换为成员 A 的 SWR 镜像 `swr.cn-north-4.myhuaweicloud.com/cloud-course-a/spark-operator-controller:2.5.0`，并复制、绑定 `default-secret` 作为镜像拉取密钥，最终两个 Operator Pod 均为 `1/1 Running`。
+
+随后使用成员 B 提供的 PySpark 镜像 `swr.cn-north-4.myhuaweicloud.com/xinchunli/pyspark:3.5.4-a3` 提交 WordCount 示例作业，`mainApplicationFile` 为 `local:///opt/spark/work/wordcount.py`，`sparkVersion` 为 `3.5.4`，`executor.instances=2`，`driver/executor memory=1g`。调试过程中曾遇到镜像缺少脚本、Driver 内存设置过低以及原 2 个 `c9.large.2` 节点资源不足导致 Executor Pending 等问题。最终新增 2 个 `c9.large.4` Worker 节点后，Driver 和两个 Executor 均成功运行并进入 `Completed` 状态。
+
+A-0 核心验收截图已保存：
+
+```text
+figures_A/A-0/01_SparkOperator命名空间和Pod状态.png
+figures_A/A-0/02_SparkApplicationYAML关键参数.png
+figures_A/A-0/03_提交SparkApplication成功.png
+figures_A/A-0/04_【验收】Driver和两个Executor完成状态_watch.png
+figures_A/A-0/05_SparkDriver日志输出.png
+figures_A/A-0/06_SparkApplication完成状态.png
+```
 
 ## 附加题 1 Prometheus + Grafana 监控系统
 
@@ -154,4 +169,4 @@ figures_A/T6/08_【验收】Pod数量缩回1个.png
 
 ## 下一步
 
-当前下一步是 A-0 Spark Operator 环境部署。需要确认 Spark Operator 安装方式，部署 Operator，并提交 SparkApplication 进行云端验证。
+当前下一步是附加题 1 Prometheus + Grafana 监控系统。需要确认 Helm Chart 或离线安装包，部署监控组件，并保存 Prometheus/Grafana 相关截图。
