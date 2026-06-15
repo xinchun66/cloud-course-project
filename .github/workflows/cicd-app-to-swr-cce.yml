@@ -55,8 +55,13 @@ jobs:
       - name: Configure kubeconfig
         run: |
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.CCE_KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          printf '%s' "${{ secrets.CCE_KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          printf '%s' "${{ secrets.CCE_CERTFILE_B64 }}" | base64 -d > "$HOME/.kube/certfile.cert"
+          printf '%s' "${{ secrets.CCE_KEYFILE_B64 }}" | base64 -d > "$HOME/.kube/keyfile.key"
           chmod 600 "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/certfile.cert" "$HOME/.kube/keyfile.key"
+          kubectl config view --minify
+          kubectl cluster-info
 
       - name: Update backend Deployment image
         run: |

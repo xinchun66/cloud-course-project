@@ -37,9 +37,11 @@ k8s/backend-hpa.yaml
 |---|---|
 | `SWR_USERNAME` | 成员 A 的华为云 SWR 登录用户名 |
 | `SWR_PASSWORD` | 成员 A 的华为云 SWR 登录密码或临时登录密钥 |
-| `CCE_KUBE_CONFIG_B64` | CCE 集群 kubeconfig 文件的 Base64 编码内容 |
+| `CCE_KUBE_CONFIG_B64` | CCE 集群原始 kubeconfig 文件的 Base64 编码内容 |
+| `CCE_CERTFILE_B64` | CCE kubeconfig 引用的 `certfile.cert` 的 Base64 编码内容 |
+| `CCE_KEYFILE_B64` | CCE kubeconfig 引用的 `keyfile.key` 的 Base64 编码内容 |
 
-安全要求：不要将 SWR 登录命令、AK/SK、kubeconfig 原文或 Base64 后的 kubeconfig 提交到仓库，也不要放入截图。
+安全要求：不要将 SWR 登录命令、AK/SK、kubeconfig 原文、证书文件、私钥文件或 Base64 后的凭据内容提交到仓库，也不要放入截图。
 
 ## 4. 流水线步骤
 
