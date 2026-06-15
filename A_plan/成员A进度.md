@@ -173,7 +173,7 @@ figures_A/A-0/06_SparkApplication完成状态.png
 - [ ] 编写 `figures_A/C2_CICD/C2_CICD说明.md`。
 - [ ] 提交 CI/CD 云端验证截图和说明。
 
-说明：已补充 `.github/workflows/cicd-app-to-swr-cce.yml`，用于对第一部分 backend/frontend 应用执行“代码提交 -> 自动构建镜像 -> 推送成员 A 的 SWR -> 更新 CCE 中 backend/frontend Deployment”的端到端流程。该 workflow 依赖 GitHub Secrets：`SWR_USERNAME`、`SWR_PASSWORD`、`CCE_KUBE_CONFIG_B64`、`CCE_CERTFILE_B64` 和 `CCE_KEYFILE_B64`，不会在仓库中保存明文账号、AK/SK、kubeconfig、证书或私钥。
+说明：已补充 `.github/workflows/cicd-app-to-swr-cce.yml`，用于对第一部分 backend/frontend 应用执行“代码提交 -> 自动构建镜像 -> 推送成员 A 的 SWR”的流程。该 workflow 依赖 GitHub Secrets：`SWR_USERNAME` 和 `SWR_PASSWORD`，不会在仓库中保存明文账号或 AK/SK。由于 GitHub hosted runner 无法直接复用 CloudShell 的非标准私钥文件访问 CCE，Deployment 镜像更新改为在 CloudShell 中使用 workflow 输出的新 Tag 执行并截图验证。
 
 已在 `figures_A/C2_CICD/C2_CICD说明.md` 中整理 workflow 阶段、所需环境文件、Secrets 配置、验收截图清单，以及 CI/CD 与 GitOps 概念说明。下一步需要配置 Secrets 并运行 GitHub Actions，运行成功后补充流水线 Passed、SWR 新 Tag、Deployment 新镜像、Pod Running 和接口访问正常截图。
 
