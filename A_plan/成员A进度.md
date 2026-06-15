@@ -10,7 +10,7 @@
 | [x] | T5 ConfigMap Volume 挂载 | 已完成，已提交 `figures_A/T5` 截图和说明。 |
 | [x] | T6 HPA 弹性伸缩 | 已完成，已提交 `figures_A/T6` 截图和说明。 |
 | [x] | A-0 Spark Operator 环境部署 | 已完成，已提交 `figures_A/A-0` 截图和说明。 |
-| [ ] | 附加题 1 Prometheus + Grafana 监控系统 | 未开始。 |
+| [x] | 附加题 1 Prometheus + Grafana 监控系统 | 已完成，已提交 `figures_A/附加题1` 截图和说明。 |
 | [ ] | 附加题 2 CI/CD 云端部署验证 | 未开始。 |
 
 ## T2 CCE 集群搭建
@@ -146,15 +146,19 @@ figures_A/A-0/06_SparkApplication完成状态.png
 
 ## 附加题 1 Prometheus + Grafana 监控系统
 
-- [ ] 获取 kube-prometheus-stack Helm Chart 或确认安装方式。
-- [ ] 部署 Prometheus 和 Grafana。
-- [ ] 确认监控相关 Pod Running。
-- [ ] 打开 Grafana Dashboard。
-- [ ] 截图节点 CPU 利用率折线图。
-- [ ] 截图 Pod 内存使用柱状图。
-- [ ] 保存监控截图到 `figures_A/C1监控/`。
-- [ ] 编写 `figures_A/C1监控/C1监控说明.md`。
-- [ ] 提交监控截图和说明。
+- [x] 获取 kube-prometheus-stack Helm Chart 或确认安装方式。
+- [x] 部署 Prometheus 和 Grafana/CCE 云原生监控组件。
+- [x] 确认监控相关 Pod Running。
+- [x] 打开 CCE 云原生观测监控面板。
+- [x] 截图节点 CPU 利用率折线图。
+- [x] 截图 Pod/工作负载内存使用图。
+- [x] 保存监控截图到 `figures_A/附加题1/`。
+- [x] 编写 `figures_A/附加题1/C1监控说明.md`。
+- [x] 提交监控截图和说明。
+
+说明：附加题 1 使用 CCE 云原生监控插件 `kube-prometheus-stack` 完成。监控相关 Pod 均位于 `monitoring` 命名空间，`alertmanager`、`custom-metrics-apiserver`、`kube-state-metrics`、`node-exporter`、`prometheus-operator` 和 `prometheus-server` 均为 `Running`；`prometheus-server` Service 和 `pvc-prometheus-server-0` PVC 已创建，Prometheus 可通过 `kubectl port-forward -n monitoring svc/prometheus-server 9090:9090` 访问。
+
+当前截图已覆盖任务书附加题 1 的核心要求：`08_集群CPU和内存监控分析图.png` 展示集群 CPU 和内存时间趋势，`09_backend工作负载CPU内存监控图.png` 展示 backend 工作负载 CPU、内存、磁盘和网络指标。`C1监控说明.md` 已补充 Prometheus Pull 采集原理，以及 CPU 使用率、内存使用率、CPU 分配率、内存分配率、网络上下行速率等指标含义。
 
 ## 附加题 2 CI/CD 云端部署验证
 
@@ -169,4 +173,4 @@ figures_A/A-0/06_SparkApplication完成状态.png
 
 ## 下一步
 
-当前下一步是附加题 1 Prometheus + Grafana 监控系统。需要确认 Helm Chart 或离线安装包，部署监控组件，并保存 Prometheus/Grafana 相关截图。
+当前下一步是附加题 2 CI/CD 云端部署验证。附加题 1 Prometheus + Grafana/CCE 云原生监控系统已完成截图整理和说明文档补充。
