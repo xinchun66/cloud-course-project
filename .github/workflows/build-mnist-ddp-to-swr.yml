@@ -21,9 +21,9 @@ jobs:
       - name: Build MNIST DDP image
         run: |
           docker build -f extra/Dockerfile.pytorch \
-            -t swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:v1 \
+            -t swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1 \
             extra
 
       - name: Push MNIST DDP image
         run: |
-          docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:v1
+          docker push swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1
