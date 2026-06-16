@@ -1,0 +1,38 @@
+name: CI-CD-MNIST-DDP
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Login to Huawei SWR
+        run: |
+          echo "${{ secrets.SWR_PASSWORD }}" | docker login \
+          -u "${{ secrets.SWR_USERNAME }}" \
+          --password-stdin swr.cn-north-4.myhuaweicloud.com
+
+      # Build image
+      - name: Build Docker image
+        run: |
+          docker build -f spark-image/Dockerfile \
+          -t swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:${{ env.TAG }} .
+
+      # Push image
+      - name: Push Docker image
+        run: |
+          docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:${{ env.TAG }}
+
+      - name: Show image tag
+        run: echo "IMAGE TAG = ${{ env.TAG }}"
