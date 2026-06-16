@@ -1,56 +1,486 @@
 \section{第二部分：Spark大数据分析}
 \mbox{}
 \subsection{A-0：Spark环境部署}
-\mbox{}
+
+为了在 Kubernetes 环境中运行 Spark 作业，本项目采用 Spark Operator 方式部署 Spark 集群。Spark Operator 是 Kubernetes 环境下用于管理 SparkApplication 资源的控制器，能够自动完成 Driver Pod、Executor Pod 的创建、监控与销毁，从而实现 Spark 作业的声明式管理。相比传统 spark-submit 方式，Spark Operator 更符合云原生架构思想，便于与 Kubernetes 的调度、资源管理和监控体系进行集成。
+
 \subsubsection{Spark Operator安装}
-\mbox{}
+
+本实验基于华为云 CCE 集群部署 Spark Operator。首先将 Spark Operator 控制器镜像同步至华为云 SWR 镜像仓库，然后通过 Deployment 和 Service 完成部署。安装完成后，通过查看 Spark Operator 控制器 Pod 状态验证服务是否正常运行。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/01_SparkOperator命名空间和Pod状态.png}
+\caption{Spark Operator控制器运行状态}
+\label{fig:a0_operator_running}
+\end{figure}
+
+图\ref{fig:a0_operator_running}展示了 Spark Operator 控制器成功运行的状态。控制器 Pod 处于 Running 状态，说明 SparkApplication 资源已经具备调度能力，可以接受后续 Spark 作业提交请求。
+
+在部署过程中，还需要确认 Spark Operator 控制器实际使用的镜像已经切换到可访问的 SWR 镜像仓库，避免由于外部镜像拉取失败导致控制器无法启动。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/01补充_SparkOperatorDeployment镜像已切换.png}
+\caption{Spark Operator Deployment镜像切换结果}
+\label{fig:a0_operator_image_switch}
+\end{figure}
+
+图\ref{fig:a0_operator_image_switch}展示了 Spark Operator Deployment 中镜像地址已经完成切换。该步骤保证控制器 Pod 能够稳定拉取镜像并进入 Running 状态，为后续提交 SparkApplication 提供基础。
+
 \subsubsection{SparkApplication YAML参数配置}
-\mbox{}
+
+为了运行 Spark 数据分析任务，需要编写 SparkApplication 资源文件。该文件定义了 Spark 版本、镜像地址、Driver 与 Executor 资源配置、Python 主程序路径以及重启策略等参数。
+
+本实验采用自定义镜像：
+
+\begin{center}
+swr.cn-north-4.myhuaweicloud.com/xinchunli/pyspark:3.5.4-a3
+\end{center}
+
+镜像内部包含 analysis.py、wordcount.py 以及豆瓣电影数据集文件，从而保证 Spark Driver 与 Executor 能够直接访问分析脚本和输入数据。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/02_SparkApplicationYAML关键参数.png}
+\caption{SparkApplication配置文件关键参数}
+\label{fig:a0_yaml}
+\end{figure}
+
+图\ref{fig:a0_yaml}展示了 SparkApplication 的关键配置项。其中 Driver 和 Executor 均采用 Kubernetes Pod 形式运行，通过声明式资源配置实现自动调度与资源管理。
+
 \subsubsection{WordCount示例作业提交}
-\mbox{}
+
+为验证 Spark Operator 环境能够正常运行，首先提交官方推荐的 WordCount 示例程序。该程序统计输入文本中各单词出现次数，并输出统计结果。
+
+提交作业后，Spark Operator 自动创建 Driver Pod，Driver 再根据任务需求创建 Executor Pod。整个过程无需手动管理容器生命周期，体现了 Kubernetes 对分布式计算任务的统一调度能力。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/03_提交SparkApplication成功.png}
+\caption{WordCount示例作业提交}
+\label{fig:a0_wordcount_submit}
+\end{figure}
+
+图\ref{fig:a0_wordcount_submit}展示了 WordCount 作业提交过程。系统成功创建 SparkApplication 资源，并进入调度阶段。
+
+首次调试时，WordCount Driver 曾出现启动失败现象。为保证实验记录完整，报告保留问题现场、原因定位和资源修复后的验证截图。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/问题现象_WordCountDriver启动后Error.png}
+\caption{WordCount Driver启动后出现Error状态}
+\label{fig:a0_wordcount_error}
+\end{figure}
+
+图\ref{fig:a0_wordcount_error}记录了 Driver Pod 启动后进入 Error 状态的现象，说明 SparkApplication 已经被创建，但运行环境或资源参数仍需要进一步排查。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/问题原因_Driver内存256m低于Spark最低要求.png}
+\caption{Driver内存配置低于Spark最低要求}
+\label{fig:a0_invalid_driver_memory}
+\end{figure}
+
+图\ref{fig:a0_invalid_driver_memory}显示错误原因与 Driver 内存配置过低有关。Spark 对 Driver 进程可用内存存在最低要求，因此需要将原先偏小的内存配置调整为更合理的数值。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/问题解决_新增Worker节点后资源充足_控制台.png}
+\caption{新增Worker节点后集群资源充足}
+\label{fig:a0_worker_resource_fixed}
+\end{figure}
+
+图\ref{fig:a0_worker_resource_fixed}展示了新增 Worker 节点后的集群资源状态。资源扩充后，Spark Driver 和 Executor 能够获得足够的调度空间，后续作业可以继续运行。
+
 \subsubsection{Driver与Executor Pod完成状态验证}
-\mbox{}
+
+WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是否均正常结束。通过查看 Pod 状态和 SparkApplication 状态，可以确认作业执行是否成功。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/04_【验收】Driver和两个Executor完成状态_watch.png}
+\caption{Driver与Executor Pod执行完成状态}
+\label{fig:a0_driver_executor_completed}
+\end{figure}
+
+图\ref{fig:a0_driver_executor_completed}显示 Driver Pod 与 Executor Pod 均成功完成任务，SparkApplication 状态变为 Completed。该结果表明 Spark Operator 环境已经搭建成功，为后续数据分析任务提供了可靠运行平台。
+
+为进一步确认最终状态，还分别保留 Driver Pod、Driver 日志以及 SparkApplication 资源层面的完成结果。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/04补充_Driver最终Completed状态.png}
+\caption{Driver Pod最终Completed状态}
+\label{fig:a0_driver_completed_final}
+\end{figure}
+
+图\ref{fig:a0_driver_completed_final}从 Driver Pod 角度展示任务已经正常结束，说明主控进程完成了 WordCount 作业执行并退出。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/05_SparkDriver日志输出.png}
+\caption{Spark Driver日志输出}
+\label{fig:a0_driver_log}
+\end{figure}
+
+图\ref{fig:a0_driver_log}展示了 Driver 日志中的执行输出。日志能够反映 Spark 作业运行过程和最终输出结果，是判断作业是否真正执行成功的重要依据。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-0/06_SparkApplication完成状态.png}
+\caption{SparkApplication资源完成状态}
+\label{fig:a0_sparkapplication_completed}
+\end{figure}
+
+图\ref{fig:a0_sparkapplication_completed}从 SparkApplication 资源视角展示作业已经进入完成状态，与 Pod 状态和 Driver 日志相互印证，说明 A-0 环境部署与示例作业验证均已完成。
+
+
 \subsection{A-1：数据清洗}
-\mbox{}
+
+数据清洗是数据分析流程中的关键步骤，其目标是在保证数据完整性的前提下消除缺失值、异常值和格式不一致等问题，提高后续分析结果的准确性。本实验基于豆瓣电影数据集，利用 PySpark DataFrame API 完成数据加载、缺失值统计和数据清洗工作。
+
 \subsubsection{数据集选择与字段说明}
-\mbox{}
+
+实验选择豆瓣电影评分数据集作为分析对象。数据集包含电影基本信息、评分信息、国家地区、电影类型以及剧情简介等内容，共计约 6 万条电影记录。
+
+主要字段包括：
+
+\begin{itemize}
+\item movie\_id：电影唯一标识；
+\item title：电影名称；
+\item year：上映年份；
+\item rating\_score：平均评分；
+\item rating\_count：评分人数；
+\item genres：电影类型；
+\item countries：国家或地区；
+\item directors：导演信息；
+\item summary：电影简介。
+\end{itemize}
+
+该数据集同时具备结构化属性和文本属性，适合作为 Spark SQL 分析和性能测试的数据来源。
+
 \subsubsection{DataFrame加载与Schema输出}
-\mbox{}
+
+利用 SparkSession 读取 CSV 文件，并自动推断字段类型。随后通过 printSchema() 输出 DataFrame 的结构信息。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A1/a1-schema.png}
+\caption{豆瓣电影数据集Schema结构}
+\label{fig:a1_schema}
+\end{figure}
+
+图\ref{fig:a1_schema}展示了数据集的字段结构及数据类型。可以看到评分、评分人数等字段已被自动识别为数值类型，为后续统计分析提供了基础。
+
 \subsubsection{前5行数据预览}
-\mbox{}
+
+在完成数据加载后，通过 show(5) 方法查看数据集前 5 行记录，以验证数据读取是否正确。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A1/a1-top5.png}
+\caption{数据集前5行预览}
+\label{fig:a1_top5}
+\end{figure}
+
+图\ref{fig:a1_top5}展示了电影名称、评分、国家地区等字段内容，说明 CSV 文件已经被正确解析并转换为 Spark DataFrame。
+
 \subsubsection{字段缺失值比例统计}
-\mbox{}
+
+为了评估数据质量，首先统计各字段缺失值比例。通过遍历所有字段并计算空值占比，得到缺失值统计结果。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A1/a1-missing-ratio.png}
+\caption{字段缺失值比例统计结果}
+\label{fig:a1_missing_ratio}
+\end{figure}
+
+图\ref{fig:a1_missing_ratio}表明部分文本字段存在一定比例缺失值，而评分相关字段缺失比例相对较低。因此需要采用不同策略进行处理。
+
 \subsubsection{缺失字段处理策略一}
-\mbox{}
+
+对于 movie\_id、title、year、rating\_score 和 rating\_count 等核心分析字段，若存在缺失值，将导致统计结果失真。因此采用删除策略处理。
+
+具体实现方式为：
+
+\begin{center}
+dropna(subset=[核心字段])
+\end{center}
+
+该策略能够保证参与分析的数据均具备完整关键属性。
+
 \subsubsection{缺失字段处理策略二}
-\mbox{}
+
+对于 directors、countries、genres、summary 等辅助信息字段，为避免大量数据被删除，采用填充策略处理。
+
+填充值设置如下：
+
+\begin{itemize}
+\item Unknown；
+\item No Summary。
+\end{itemize}
+
+通过 fillna() 方法完成统一填充，使数据集保持完整性。
+
 \subsubsection{清洗前后行数与统计信息对比}
-\mbox{}
+
+完成清洗后，对比数据量变化情况。
+
+实验结果如下：
+
+\begin{center}
+清洗前：67132 条记录\\
+清洗后：61853 条记录\\
+删除记录：5279 条
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures_B/A1/a1-row-count-comparison.png}
+\caption{数据清洗前后记录数对比}
+\label{fig:a1_row_count}
+\end{figure}
+
+图\ref{fig:a1_row_count}显示，数据清洗后仍保留超过 6 万条有效记录，仅移除了关键字段缺失的数据。该结果说明数据集整体质量较高，同时保证了后续统计分析结果的可靠性。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\textwidth]{figures_B/A1/a1-statistics-summary.png}
+\caption{数据清洗后数值字段统计信息}
+\label{fig:a1_statistics}
+\end{figure}
+
+图\ref{fig:a1_statistics}展示了 $year$、$rating\_score$、$rating\_count$ 和 $collect\_count$ 等数值字段的统计信息，包括均值、标准差、最小值和最大值。通过统计结果可以看出，评分字段整体分布较为稳定，而评分人数与收藏人数存在较大波动，说明不同电影之间的受关注程度差异明显。
+
+
+
 \subsection{A-2：Spark SQL统计分析}
-\mbox{}
+
+在完成数据清洗后，利用 Spark SQL 对豆瓣电影数据集进行统计分析。Spark SQL 提供了类似传统关系数据库的查询能力，同时能够充分利用 Spark 分布式计算框架的并行处理优势。本实验设计了四类典型分析任务，分别覆盖 GROUP BY 聚合分析、ORDER BY Top-N 分析、时间趋势分析以及窗口函数分析，以验证 Spark SQL 在大数据分析场景中的应用能力。
+
 \subsubsection{查询一：GROUP BY聚合分析}
-\mbox{}
+
+第一个查询以电影类型（Genres）为统计对象，计算每种类型对应的电影数量、平均评分以及平均评分人数。首先利用 explode 函数将多类型字段拆分为多行数据，再使用 GROUP BY 完成聚合统计，最后筛选电影数量不少于 5 部的类型，并按照平均评分降序排列。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-query1-groupby.png}
+\caption{按电影类型统计数量与平均评分}
+\label{fig:a2_query1}
+\end{figure}
+
+图\ref{fig:a2_query1}展示了不同电影类型的统计结果。从结果可以看出，纪录片、传记类电影往往具有较高平均评分，而商业娱乐类电影虽然数量较多，但平均评分相对较低。该分析有助于观察不同题材电影在用户评价中的整体表现。
+
 \subsubsection{查询二：ORDER BY Top-N分析}
-\mbox{}
+
+第二个查询按照评分人数（$rating\_count$）进行排序，选取评分人数最高的前 10 部电影。评分人数能够反映电影的社会影响力和用户关注程度，因此该分析有助于识别最具代表性的热门电影。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-query2-topn.png}
+\caption{评分人数最高的Top-10电影}
+\label{fig:a2_query2}
+\end{figure}
+
+图\ref{fig:a2_query2}给出了评分人数排名前十的电影结果。这些影片通常具有较高知名度和广泛观众基础，其评分结果能够较为真实地反映大众评价水平。相比评分较高但评价人数较少的电影，该结果更能体现电影的社会影响力。
+
 \subsubsection{查询三：时间维度趋势分析}
-\mbox{}
+
+第三个查询按照上映年份进行聚合统计，计算每年的电影数量、平均评分以及平均评分人数，并筛选 1900 至 2030 年之间且样本数量不少于 3 部的年份记录。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-query3-year-trend.png}
+\caption{电影数量与评分时间趋势分析}
+\label{fig:a2_query3}
+\end{figure}
+
+图\ref{fig:a2_query3}展示了电影数据在时间维度上的变化情况。从结果可以观察到，随着电影工业的发展，近二十年电影产量明显增加。同时，评分水平整体保持相对稳定，说明用户评价标准并未随着时间推移发生显著变化。
+
 \subsubsection{查询四：JOIN或窗口函数分析}
-\mbox{}
+
+第四个查询利用窗口函数 $ROW\_NUMBER()$ 对国家或地区进行分组排序，统计每个国家评分最高的前三部电影。窗口函数能够在保持原始记录粒度的同时完成分组排名分析，是 Spark SQL 中的重要高级特性。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-query4-window-function.png}
+\caption{各国家评分前三电影统计结果}
+\label{fig:a2_query4}
+\end{figure}
+
+图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。结果表明，不同国家的高分电影具有明显的文化特色和地域特征，窗口函数能够有效完成此类分组排名任务。
+
 \subsubsection{统计结果截图与分析说明汇总}
-\mbox{}
+
+本实验共完成四类 Spark SQL 分析任务，覆盖了聚合分析、排序分析、时间趋势分析以及窗口函数分析等典型场景。实验结果表明，Spark SQL 能够在保持 SQL 易用性的同时，利用 Spark 的分布式计算能力处理大规模数据分析任务。通过 DataFrame 与 SQL 结合的方式，可以方便地实现复杂统计分析需求，为后续数据挖掘和机器学习任务提供可靠的数据支撑。
+
+
+
 \subsection{A-3：性能对比与Amdahl分析}
-\mbox{}
+
+为了评估 Spark 分布式计算框架在当前数据规模下的性能表现，本实验选取 A-2 中的电影类型聚合统计查询作为测试对象，分别使用 Pandas 单机模式、PySpark 单 Executor 模式以及 PySpark 双 Executor 模式进行执行，并记录运行时间进行对比分析。
+
 \subsubsection{对比查询选择与实验设计}
-\mbox{}
+
+实验选取电影类型聚合统计任务作为基准查询。该查询需要对电影类型字段进行拆分、聚合和排序，能够较好体现 Spark SQL 的数据处理流程。
+
+实验共设计三组测试：
+
+\begin{enumerate}
+\item Pandas 单机执行；
+\item PySpark 单 Executor 执行；
+\item PySpark 双 Executor 执行。
+\end{enumerate}
+
+所有测试均使用相同数据集和相同统计逻辑，从而保证实验结果具有可比性。实验结果如表\ref{tab:a3_performance}所示。
+
+\begin{table}[H]
+\centering
+\caption{不同执行模式性能对比}
+\label{tab:a3_performance}
+\begin{tabular}{ccc}
+\toprule
+执行模式 & Executor 数量 & 执行时间/s \\
+\midrule
+Pandas & -- & 0.5031 \\
+PySpark & 1 & 1.1460 \\
+PySpark & 2 & 1.1605 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsubsection{Pandas单机执行时间}
-\mbox{}
+
+利用 Pandas DataFrame 在单机环境下完成相同聚合分析任务。实验结果显示，Pandas 查询时间为 0.5031 s。由于数据规模约为 6 万条记录，Pandas 能够直接在单机内存中完成全部计算，因此执行效率较高。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\textwidth]{figures_B/A3/a3-exec1-final-log-result.png}
+\caption{Pandas与PySpark单Executor性能测试结果}
+\label{fig:a3_exec1_result}
+\end{figure}
+
+图\ref{fig:a3_exec1_result}展示了 Pandas 与 PySpark 单 Executor 的性能测试结果。
+
 \subsubsection{PySpark单Executor执行时间}
-\mbox{}
+
+在 Spark 集群环境下配置 1 个 Executor 执行相同查询任务。实验结果显示，PySpark 单 Executor 查询时间为 1.1460 s。相比 Pandas，PySpark 单 Executor 运行时间更长，主要原因在于 Spark 需要完成 Driver 初始化、Executor 创建、任务调度以及结果收集等额外操作，因此在小规模数据场景下难以体现分布式计算优势。
+
+单 Executor 测试开始前，需要将 SparkApplication 中的 Executor 实例数配置为 1，并重新提交对应资源文件。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/01_executor1_SparkApplicationYAML参数.png}
+\caption{单Executor测试的SparkApplication YAML参数}
+\label{fig:a3_exec1_yaml}
+\end{figure}
+
+图\ref{fig:a3_exec1_yaml}展示了单 Executor 测试所使用的 YAML 关键参数，重点确认 executor.instances 设置为 1，从而保证该轮测试只使用一个 Executor 参与计算。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/02_executor1_DriverCompleted状态.png}
+\caption{单Executor测试Driver完成状态}
+\label{fig:a3_exec1_driver_completed}
+\end{figure}
+
+图\ref{fig:a3_exec1_driver_completed}展示了单 Executor 测试完成后 Driver Pod 的状态。Driver 成功进入 Completed，说明该轮性能测试作业已正常结束。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/03_executor1_Driver日志性能输出.png}
+\caption{单Executor测试Driver日志性能输出}
+\label{fig:a3_exec1_driver_log}
+\end{figure}
+
+图\ref{fig:a3_exec1_driver_log}给出了单 Executor 模式下 Driver 日志中的性能输出，可用于核对 Pandas 与 PySpark 的运行时间记录。
+
 \subsubsection{PySpark双Executor执行时间}
-\mbox{}
+
+随后将 Executor 数量增加至 2 个，以验证增加计算资源后是否能够获得性能提升。实验结果显示，PySpark 双 Executor 查询时间为 1.1605 s。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\textwidth]{figures_B/A3/a3-exec2-final-log-result.png}
+\caption{PySpark双Executor性能测试结果}
+\label{fig:a3_exec2_result}
+\end{figure}
+
+图\ref{fig:a3_exec2_result}展示了双 Executor 环境下的执行结果。实验发现双 Executor 并未带来明显加速，反而略高于单 Executor 运行时间。
+
+双 Executor 测试同样需要单独调整 SparkApplication 配置，并在作业完成后核对 Driver 状态和日志输出。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/04_executor2_SparkApplicationYAML参数.png}
+\caption{双Executor测试的SparkApplication YAML参数}
+\label{fig:a3_exec2_yaml}
+\end{figure}
+
+图\ref{fig:a3_exec2_yaml}展示了双 Executor 测试所使用的 YAML 参数，重点确认 executor.instances 设置为 2，用于与单 Executor 测试形成对照。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/05_executor2_DriverCompleted状态.png}
+\caption{双Executor测试Driver完成状态}
+\label{fig:a3_exec2_driver_completed}
+\end{figure}
+
+图\ref{fig:a3_exec2_driver_completed}展示了双 Executor 测试完成后 Driver Pod 的状态。Driver 正常完成，说明增加 Executor 数量后作业本身可以成功执行。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_A/A-3协助/06_executor2_Driver日志性能输出.png}
+\caption{双Executor测试Driver日志性能输出}
+\label{fig:a3_exec2_driver_log}
+\end{figure}
+
+图\ref{fig:a3_exec2_driver_log}展示了双 Executor 模式下 Driver 日志中的性能输出。结合图\ref{fig:a3_exec1_driver_log}可以看出，两轮测试都成功输出性能指标，为后续性能对比和 Amdahl 分析提供了依据。
+
 \subsubsection{性能对比图绘制}
-\mbox{}
+
+根据实验结果绘制性能对比图，对比不同执行模式下的运行时间。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{figures_B/A3/a3-performance-comparison.png}
+\caption{Pandas与PySpark性能对比}
+\label{fig:a3_performance_compare}
+\end{figure}
+
+图\ref{fig:a3_performance_compare}表明，在当前数据规模下，Pandas 具有最高执行效率，而 PySpark 单 Executor 和双 Executor 的执行时间相近。这说明分布式计算框架并不一定适用于所有规模的数据分析任务。
+
 \subsubsection{Amdahl定律加速比分析}
-\mbox{}
+
+Amdahl 定律用于描述并行计算的理论加速比，其表达式如下：
+
+\[
+S(N)=\frac{1}{(1-f)+\frac{f}{N}}
+\]
+
+其中，$f$ 表示可并行部分所占比例，$N$ 表示处理器数量，$S(N)$ 表示理论加速比。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{figures_B/A3/a3-amdahl-analysis.png}
+\caption{实测加速比与Amdahl理论加速比对比}
+\label{fig:a3_amdahl}
+\end{figure}
+
+图\ref{fig:a3_amdahl}展示了实测加速比与 Amdahl 理论加速比之间的对比关系。根据实验结果，双 Executor 相比单 Executor 并未获得实际加速效果，说明当前数据规模下并行计算带来的收益不足以抵消系统额外开销。
+
 \subsubsection{非线性加速原因讨论}
-\mbox{}
+
+实验结果显示，PySpark 双 Executor 的执行时间略高于单 Executor。造成这一现象的主要原因包括：
+
+\begin{enumerate}
+\item 数据规模较小，无法充分利用多个 Executor 的计算能力；
+\item Spark Driver 启动和 Executor 调度存在固定开销；
+\item Shuffle 数据交换和网络通信产生额外成本；
+\item 序列化与反序列化过程增加处理时间；
+\item Kubernetes 环境下 Pod 创建和资源调度带来额外延迟。
+\end{enumerate}
+
+综合来看，Spark 的优势主要体现在大规模数据处理场景。当数据规模达到数 GB 甚至数十 GB 时，分布式并行计算能够显著降低总体执行时间；而对于当前约 6 万条记录的数据集，单机 Pandas 已能够高效完成分析任务，因此表现优于 Spark 集群模式。
