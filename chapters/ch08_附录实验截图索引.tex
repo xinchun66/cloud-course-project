@@ -1,14 +1,426 @@
 \section{附录：实验截图索引}
-\mbox{}
+
+本附录对课程设计全部实验截图进行集中索引，便于答辩查验与材料归档。项目截图分散存放于三个目录：`assets/report_figures/` 为报告正文引用的规范化路径；`figures\_A/` 为成员 A 提交的云端部署与运维截图（多为中文文件名）；`figures\_B/` 为成员 B 提交的 Spark 数据分析与性能测试截图。表中“报告位置”列标明截图在正文中的引用章节；类型列分为\textbf{核心验收}、\textbf{辅助}与\textbf{问题}三类，分别对应任务书硬性要求、过程说明与第五章故障现场记录。
+
+\subsection{概述与总览截图}
+
+\begin{table}[H]
+  \centering
+  \caption{第一章概述截图索引（\texttt{assets/report\_figures/}）}
+  \label{tab:idx-overview}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{5.2cm}p{1.4cm}p{2.0cm}p{4.8cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & overview-compose.png & 辅助 & 第一章 & Docker Compose 本地联调成功 \\
+    2 & overview-nodes-ready.png & 辅助 & 第一章 & CCE 两个 Worker 节点 Ready \\
+    3 & overview-api-ping.png & 辅助 & 第一章 & ELB 公网访问 \verb|/api/ping| 正常 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{第一部分截图索引}
-\mbox{}
-\subsubsection{任务1至任务3截图}
-\mbox{}
+
+\subsubsection{任务1：应用容器化（T1）}
+
+\begin{table}[H]
+  \centering
+  \caption{T1 截图索引（\texttt{assets/report\_figures/t1/}）}
+  \label{tab:idx-t1}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{5.0cm}p{1.4cm}p{2.0cm}p{5.0cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & t1-01-docker-desktop.png & 辅助 & 第三章 T1 & Docker Desktop 正常运行 \\
+    2 & t1-02-compose-build-up.png & 辅助 & 第三章 T1 & \verb|docker compose up -d --build| 构建启动 \\
+    3 & t1-03-compose-running.png & 辅助 & 第三章 T1 & backend 与 Redis 容器运行中 \\
+    4 & t1-04-backend-return.png & 辅助 & 第三章 T1 & 本地访问后端接口有响应 \\
+    5 & t1-05-status-ok.png & 核心验收 & 第三章 T1 & 接口返回 \verb|status: ok| \\
+    6 & t1-06-backend-logs.png & 辅助 & 第三章 T1 & 后端日志记录收到请求 \\
+    7 & t1-07-backend-tag.png & 辅助 & 第三章 T1 & 后端镜像标记 \verb|v1| \\
+    8 & t1-08-frontend-tag.png & 辅助 & 第三章 T1 & 前端镜像标记 \verb|v1| \\
+    9 & t1-09-swr-list.png & 核心验收 & 第三章 T1 & SWR 控制台含镜像名与 Tag \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{任务2：CCE 集群搭建（T2）}
+
+\begin{table}[H]
+  \centering
+  \caption{T2 截图索引（\texttt{assets/report\_figures/t2/} 与 \texttt{env/}）}
+  \label{tab:idx-t2}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.0cm}p{1.4cm}p{2.0cm}p{5.0cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & env/env-swr-images.png & 辅助 & 第二章 & SWR 中 backend/frontend 镜像 \\
+    2 & t2/t2-01-cce-agency.png & 辅助 & 第二章 & CCE 首次使用创建服务委托 \\
+    3 & t2/t2-02-vpc-subnet-config.png & 辅助 & 第二章 & VPC 与子网创建配置 \\
+    4 & t2/t2-03-vpc-subnet-created.png & 辅助 & 第二章 & VPC 与子网创建成功 \\
+    5 & t2/t2-04-vpc-list.png & 辅助 & 第二章 & VPC 列表状态可用 \\
+    6 & t2/t2-05-cce-network-overview.png & 辅助 & 第二章 & CCE 集群网络配置总览 \\
+    7 & t2/t2-06-cce-network-model.png & 辅助 & 第二章 & VPC、子网与容器网络模型 \\
+    8 & t2/t2-07-cce-basic-summary.png & 辅助 & 第二章 & CCE 基础配置概要 \\
+    9 & t2/t2-09-cce-security-summary.png & 辅助 & 第二章 & 网络与安全服务配置 \\
+    10 & t2/t2-10-cce-plugin-summary.png & 辅助 & 第二章 & 网络与默认插件概要 \\
+    11 & t2/t2-11-cce-plugins.png & 辅助 & 第二章 & CoreDNS、Everest 等必要插件 \\
+    12 & t2/t2-12-cce-final-confirm.png & 辅助 & 第二章 & 提交创建集群前确认页 \\
+    13 & t2/t2-13-cce-creating.png & 辅助 & 第二章 & 集群进入创建中状态 \\
+    14 & env/env-elb-config.png & 辅助 & 第二章 & 共享型公网 ELB 创建配置 \\
+    15 & env/env-elb-running.png & 辅助 & 第二章 & ELB 负载均衡器运行中 \\
+    16 & t2/t2-14-worker-config-1.png & 辅助 & 第二章 & Worker 节点基础规格 \\
+    17 & t2/t2-15-worker-config-2.png & 辅助 & 第二章 & Worker 存储与网络配置 \\
+    18 & t2/t2-16-worker-confirm.png & 辅助 & 第二章 & Worker 规格确认页 \\
+    19 & t2/t2-17-worker-running.png & 辅助 & 第二章 & 控制台两个 Worker 运行中 \\
+    20 & t2/t2-18-nodes-ready.png & 核心验收 & 第二章 & \verb|kubectl get nodes| 两节点 Ready \\
+    21 & t2/t2-19-cluster-info.png & 辅助 & 第二章 & \verb|kubectl cluster-info| 连接成功 \\
+    22 & t2/t2-20-kubectl-version.png & 辅助 & 第二章 & kubectl 客户端版本信息 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent 原始归档路径为 \verb|figures_A/T2/|，文件名与上表 \verb|t2-XX| 编号一一对应（如 \verb|18_【验收】kubectl查看两个Worker节点Ready输出.png| 对应 \verb|t2-18-nodes-ready.png|）。
+
+\subsubsection{任务3：应用部署（T3）}
+
+\begin{table}[H]
+  \centering
+  \caption{T3 截图索引（报告路径 \texttt{assets/report\_figures/t3/}）}
+  \label{tab:idx-t3-report}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{4.8cm}p{1.4cm}p{2.0cm}p{5.2cm}}
+    \toprule
+    序号 & 报告引用路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & t3-01-yaml-apply.png & 辅助 & 第三章 T3 & YAML 资源 apply 成功 \\
+    2 & t3-02-pods-running.png & 核心验收 & 第三章 T3 & 全部 Pod Running \\
+    3 & t3-03-deployments.png & 辅助 & 第三章 T3 & Deployment 副本数与镜像 \\
+    4 & t3-04-services-elb.png & 辅助 & 第三章 T3 & Service 列表与 ELB 公网 IP \\
+    5 & t3-05-browser-ping.png & 核心验收 & 第三章 T3 & 浏览器访问 \verb|/api/ping| \\
+    6 & t3-06-curl-ping.png & 核心验收 & 第三章 T3 & curl 返回 \verb|redis: connected| \\
+    7 & t3-07-backend-logs.png & 辅助 & 第三章 T3 & 后端 Pod 日志 200 响应 \\
+    8 & t3-08-config-secret.png & 辅助 & 第三章 T3 & ConfigMap 与 Secret 存在 \\
+    9 & t3-09-before-state.png & 辅助 & 第三章 T3 & T3 部署前集群状态 \\
+    10 & t3-10-yaml-ready.png & 辅助 & 第三章 T3 & CloudShell YAML 准备完成 \\
+    11 & t3-11-yaml-check.png & 辅助 & 第三章 T3 & 关键 YAML 配置检查 \\
+    12 & t3-12-pending-problem.png & 问题 & 第三章 T3 & backend-svc 外部 IP Pending \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{T3 原始归档补充（\texttt{figures\_A/T3/}，未全部收入报告正文）}
+  \label{tab:idx-t3-raw}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.8cm}p{1.4cm}p{5.0cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 说明 \\
+    \midrule
+    1 & 12\_SWR镜像确认backend和frontend\_v1.png & 辅助 & SWR 组织内镜像 Tag 核对 \\
+    2 & 13\_ELB创建配置概要.png & 辅助 & 手动创建 ELB 的配置页 \\
+    3 & 14\_ELB负载均衡器运行中.png & 辅助 & ELB 创建成功 \\
+    4 & 15\_问题现象\_backend\_svc外部IP持续Pending.png & 问题 & 与 t3-12 同类故障现场 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsubsection{任务4至任务6截图}
-\mbox{}
+
+\paragraph{T4 Redis 持久化存储}
+
+\begin{table}[H]
+  \centering
+  \caption{T4 截图索引（\texttt{assets/report\_figures/t4/}）}
+  \label{tab:idx-t4}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{4.8cm}p{1.4cm}p{2.0cm}p{5.2cm}}
+    \toprule
+    序号 & 报告引用路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & t4-00-apply.png & 辅助 & 第三章 T4 & PVC 与 Deployment 创建成功 \\
+    2 & t4-01-pvc-bound.png & 核心验收 & 第三章 T4 & PVC 状态 Bound，10Gi \\
+    3 & t4-02-pod-volume.png & 辅助 & 第三章 T4 & Redis Pod 挂载 \verb|/data| \\
+    4 & t4-03-set-testkey.png & 核心验收 & 第三章 T4 & 写入 \verb|testkey=hello| \\
+    5 & t4-04-delete-pod.png & 核心验收 & 第三章 T4 & 删除 Redis Pod 触发重建 \\
+    6 & t4-05-recreated-running.png & 辅助 & 第三章 T4 & 新 Pod Running \\
+    7 & t4-06-get-testkey.png & 核心验收 & 第三章 T4 & 重建后仍返回 hello \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent 原始归档见 \verb|figures_A/T4/|，核心验收文件名为 \verb|01_【验收】RedisPVC绑定Bound状态.png| 等。
+
+\paragraph{T5 ConfigMap Volume 挂载}
+
+\begin{table}[H]
+  \centering
+  \caption{T5 截图索引（\texttt{assets/report\_figures/t5/}）}
+  \label{tab:idx-t5}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{4.8cm}p{1.4cm}p{2.0cm}p{5.2cm}}
+    \toprule
+    序号 & 报告引用路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & t5-01-configmap-content.png & 辅助 & 第三章 T5 & Nginx ConfigMap 内容 \\
+    2 & t5-02-deploy-volume-1.png & 辅助 & 第三章 T5 & frontend Deployment 挂载信息 \\
+    3 & t5-03-deploy-volume-2.png & 辅助 & 第三章 T5 & Volume 来源为 ConfigMap \\
+    4 & t5-04-exec-default-conf.png & 辅助 & 第三章 T5 & 修改前 Pod 内配置文件 \\
+    5 & t5-05-apply-update.png & 辅助 & 第三章 T5 & 修改 ConfigMap 后 apply \\
+    6 & t5-06-exec-updated-conf.png & 核心验收 & 第三章 T5 & 更新标记已写入配置文件 \\
+    7 & t5-07-pods-running-after-update.png & 辅助 & 第三章 T5 & 滚动更新后全部 Running \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{T6 HPA 弹性伸缩}
+
+\begin{table}[H]
+  \centering
+  \caption{T6 截图索引（\texttt{figures\_A/T6/}）}
+  \label{tab:idx-t6}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.4cm}p{1.4cm}p{2.0cm}p{4.6cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & 01\_metrics\_server可用top\_nodes.png & 辅助 & 第三章 T6 & Metrics Server 与 top nodes \\
+    2 & 02\_HPA资源创建成功.png & 辅助 & 第三章 T6 & backend-hpa 已创建 \\
+    3 & 03\_HPA初始状态minReplicas为1.png & 辅助 & 第三章 T6 & 初始副本数为 1 \\
+    4 & 04\_压测命令开始执行.png & 辅助 & 第三章 T6 & curl 循环压测启动 \\
+    5 & 05\_HPA触发扩容状态.png & 辅助 & 第三章 T6 & CPU 超阈值触发扩容 \\
+    6 & 06\_【验收】Pod数量从1扩容到2或更多.png & 核心验收 & 第三章 T6 & Pod 由 1 扩至 4 \\
+    7 & 07\_停止压测后HPA缩容状态.png & 辅助 & 第三章 T6 & 缩容过渡状态 \\
+    8 & 08\_【验收】Pod数量缩回1个.png & 核心验收 & 第三章 T6 & 停止压测后缩回 1 个 \\
+    9 & 09\_HPA详情describe分析材料.png & 辅助 & 第三章 T6 & HPA Events 与详情 \\
+    10 & 10\_HPA恢复标准配置后状态.png & 辅助 & 第三章 T6 & 恢复 min=1, max=4 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{第二部分截图索引}
-\mbox{}
-\subsubsection{A-0与A-1截图}
-\mbox{}
-\subsubsection{A-2与A-3截图}
-\mbox{}
+
+\subsubsection{A-0 Spark 环境部署}
+
+\begin{table}[H]
+  \centering
+  \caption{A-0 截图索引（\texttt{figures\_A/A-0/}）}
+  \label{tab:idx-a0}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.6cm}p{1.4cm}p{2.0cm}p{4.4cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & 01\_SparkOperator命名空间和Pod状态.png & 辅助 & 第四章 A-0 & Operator Pod Running \\
+    2 & 01补充\_SparkOperatorDeployment镜像已切换.png & 辅助 & 第四章 A-0 & Operator 镜像切至 SWR \\
+    3 & 02\_SparkApplicationYAML关键参数.png & 辅助 & 第四章 A-0 & SparkApplication 关键参数 \\
+    4 & 03\_提交SparkApplication成功.png & 辅助 & 第四章 A-0 & WordCount 作业提交 \\
+    5 & 04\_【验收】Driver和两个Executor完成状态\_watch.png & 核心验收 & 第四章 A-0 & Driver 与 2 Executor 完成 \\
+    6 & 04补充\_Driver最终Completed状态.png & 辅助 & 第四章 A-0 & Driver Pod Completed \\
+    7 & 05\_SparkDriver日志输出.png & 辅助 & 第四章 A-0 & WordCount 日志输出 \\
+    8 & 06\_SparkApplication完成状态.png & 辅助 & 第四章 A-0 & SparkApplication COMPLETED \\
+    9 & 问题现象\_WordCountDriver启动后Error.png & 问题 & 第四/五章 & Driver 启动 Error \\
+    10 & 问题原因\_Driver内存256m低于Spark最低要求.png & 问题 & 第四/五章 & INVALID\_DRIVER\_MEMORY \\
+    11 & 问题解决\_新增Worker节点后资源充足\_控制台.png & 辅助 & 第四章 A-0 & 扩容 Worker 后资源充足 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{A-1 数据清洗}
+
+\begin{table}[H]
+  \centering
+  \caption{A-1 截图索引（\texttt{figures\_B/A1/}）}
+  \label{tab:idx-a1}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{4.6cm}p{1.4cm}p{2.0cm}p{5.4cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & a1-schema.png & 核心验收 & 第四章 A-1 & DataFrame Schema 输出 \\
+    2 & a1-top5.png & 核心验收 & 第四章 A-1 & 数据集前 5 行预览 \\
+    3 & a1-missing-ratio.png & 核心验收 & 第四章 A-1 & 各字段缺失值比例 \\
+    4 & a1-row-count-comparison.png & 辅助 & 第四章 A-1 & 清洗前后行数对比 \\
+    5 & a1-statistics-summary.png & 辅助 & 第四章 A-1 & 数值字段统计摘要 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{A-2 Spark SQL 统计分析}
+
+\begin{table}[H]
+  \centering
+  \caption{A-2 截图索引（\texttt{figures\_B/A2/}）}
+  \label{tab:idx-a2}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{4.8cm}p{1.4cm}p{2.0cm}p{5.2cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & a2-query1-groupby.png & 核心验收 & 第四章 A-2 & Query 1：按类型 GROUP BY \\
+    2 & a2-query2-topn.png & 核心验收 & 第四章 A-2 & Query 2：评分人数 Top-N \\
+    3 & a2-query3-year-trend.png & 核心验收 & 第四章 A-2 & Query 3：年份趋势分析 \\
+    4 & a2-query4-window-function.png & 核心验收 & 第四章 A-2 & Query 4：窗口函数排名 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{A-3 性能对比与 Amdahl 分析}
+
+\begin{table}[H]
+  \centering
+  \caption{A-3 截图索引（\texttt{figures\_B/A3/} 与 \texttt{figures\_A/A-3协助/}）}
+  \label{tab:idx-a3}
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{p{0.6cm}p{5.2cm}p{1.4cm}p{2.0cm}p{4.8cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 报告位置 & 说明 \\
+    \midrule
+    1 & A3/a3-exec1-final-log-result.png & 核心验收 & 第四章 A-3 & 单 Executor 性能日志 \\
+    2 & A3/a3-exec2-final-log-result.png & 核心验收 & 第四章 A-3 & 双 Executor 性能日志 \\
+    3 & A3/a3-performance-comparison.png & 核心验收 & 第四章 A-3 & Pandas 与 PySpark 耗时对比图 \\
+    4 & A3/a3-amdahl-analysis.png & 核心验收 & 第四章 A-3 & 实测与 Amdahl 理论加速比 \\
+    5 & A3/a3-invalid-driver-memory.png & 问题 & 第五章 & Driver 内存配置错误 \\
+    6 & A3/a3-exec1-pending-insufficient-resource.png & 问题 & 第五章 & Executor 资源不足 Pending \\
+    7 & A3/a3-permission-denied-error.png & 问题 & 第五章 & 跨组织镜像权限拒绝 \\
+    8 & A-3协助/01\_executor1\_SparkApplicationYAML参数.png & 辅助 & 第四章 A-3 & 单 Executor YAML 参数 \\
+    9 & A-3协助/02\_executor1\_DriverCompleted状态.png & 辅助 & 第四章 A-3 & 单 Executor Driver 完成 \\
+    10 & A-3协助/03\_executor1\_Driver日志性能输出.png & 辅助 & 第四章 A-3 & 单 Executor Driver 日志 \\
+    11 & A-3协助/04\_executor2\_SparkApplicationYAML参数.png & 辅助 & 第四章 A-3 & 双 Executor YAML 参数 \\
+    12 & A-3协助/05\_executor2\_DriverCompleted状态.png & 辅助 & 第四章 A-3 & 双 Executor Driver 完成 \\
+    13 & A-3协助/06\_executor2\_Driver日志性能输出.png & 辅助 & 第四章 A-3 & 双 Executor Driver 日志 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent A-3 还生成数据文件 \verb|figures/a3_performance_exec_1.csv|、\verb|a3_performance_exec_2.csv|、\verb|a3_amdahl_summary.csv|，详见附录代码清单。
+
+\subsection{第五章问题截图专索引}
+
+第五章仅收录故障现场截图，与上文“问题”类型条目对应，不再重复插入正常验收图。
+
+\begin{table}[H]
+  \centering
+  \caption{第五章引用的全部问题截图}
+  \label{tab:idx-ch5-problems}
+  \small
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabular}{p{0.6cm}p{5.8cm}p{2.2cm}p{4.8cm}}
+    \toprule
+    序号 & 文件路径 & 所属任务 & 故障概要 \\
+    \midrule
+    1 & figures\_A/T3/15\_问题现象\_backend\_svc外部IP持续Pending.png & T3 & LoadBalancer 未绑定 ELB \\
+    2 & figures\_A/A-0/问题现象\_WordCountDriver启动后Error.png & A-0 & WordCount Driver 启动失败 \\
+    3 & figures\_A/A-0/问题原因\_Driver内存256m低于Spark最低要求.png & A-0 & Driver 内存低于 Spark 下限 \\
+    4 & figures\_B/A3/a3-invalid-driver-memory.png & A-3 & A-3 复现同类内存错误 \\
+    5 & figures\_B/A3/a3-exec1-pending-insufficient-resource.png & A-3 & 集群内存不足无法调度 \\
+    6 & figures\_B/A3/a3-permission-denied-error.png & A-3 & 私有镜像拉取权限不足 \\
+    7 & figures\_A/附加题1/问题现象\_Helm仓库index下载连接超时.png & 附加题1 & Helm 远程仓库访问超时 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{附加题截图索引}
+
+\subsubsection{附加题1：云原生监控（Prometheus + Grafana）}
+
+\begin{table}[H]
+  \centering
+  \caption{附加题1 截图索引（\texttt{figures\_A/附加题1/}）}
+  \label{tab:idx-monitor}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.6cm}p{1.4cm}p{4.6cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 说明 \\
+    \midrule
+    1 & 问题现象\_Helm仓库index下载连接超时.png & 问题 & Helm 仓库 index 下载失败 \\
+    2 & 问题解决\_离线下载kube-prometheus-stackChart包.png & 辅助 & 离线 Chart 包安装方案 \\
+    3 & 04\_云原生监控相关Pod运行中.png & 核心验收 & monitoring 命名空间 Pod Running \\
+    4 & 05\_云原生监控Service列表.png & 辅助 & Prometheus 等 Service 列表 \\
+    5 & 06\_监控本地存储PVC状态.png & 辅助 & Prometheus PVC Bound \\
+    6 & 07\_Prometheus端口转发成功.png & 辅助 & port-forward 9090 成功 \\
+    7 & 07\_云原生监控插件运行中\_控制台.png & 辅助 & CCE 插件中心运行中 \\
+    8 & 08\_集群CPU和内存监控分析图.png & 核心验收 & 集群 CPU/内存监控曲线 \\
+    9 & 09\_backend工作负载CPU内存监控图.png & 核心验收 & backend 工作负载监控 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent 附加题1 的部署说明与 Prometheus Pull 原理解释见 \verb|figures_A/附加题1/C1监控说明.md|；正常验收截图未纳入第五章，可在答辩材料中单独展示。
+
+\subsubsection{附加题2：CI/CD 流水线}
+
+\begin{table}[H]
+  \centering
+  \caption{附加题2 截图索引（\texttt{figures\_A/附加题2/}、\texttt{figures\_B/附加题2/}）}
+  \label{tab:idx-cicd}
+  \small
+  \renewcommand{\arraystretch}{1.18}
+  \begin{tabular}{p{0.6cm}p{5.6cm}p{1.4cm}p{4.6cm}}
+    \toprule
+    序号 & 文件路径 & 类型 & 说明 \\
+    \midrule
+    1 & figures\_B/附加题2/01\_CICD\_GitHubSecrets\_已配置.png & 辅助 & GitHub Secrets 配置状态 \\
+    2 & 01\_acceptance\_cicd\_pipeline\_passed.png & 核心验收 & GitHub Actions 流水线 Passed \\
+    3 & 02\_acceptance\_swr\_backend\_image\_tag\_updated.png & 核心验收 & SWR backend Tag b7817d3 \\
+    4 & 03\_acceptance\_swr\_frontend\_image\_tag\_updated.png & 核心验收 & SWR frontend Tag b7817d3 \\
+    5 & 04\_acceptance\_k8s\_deployment\_image\_tag\_updated.png & 核心验收 & Deployment 镜像 Tag 已更新 \\
+    6 & 05\_updated\_pods\_recreated\_running.png & 核心验收 & 更新后 Pod Running \\
+    7 & 06\_updated\_api\_access\_ok.png & 核心验收 & /api/ping 接口访问正常 \\
+    8 & 07\_issue\_backend\_service\_timeout\_after\_update.png & 问题 & CloudShell 访问 ClusterIP 超时 \\
+    9 & 08\_fix\_backend\_service\_access\_from\_pod\_ok.png & 问题 & Pod 内访问 Service 验证成功 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent 附加题2 的 workflow 阶段、Secrets 说明与 CI/CD 概念解释见 \verb|figures_A/附加题2/C2_CICD说明.md|。
+
+\subsection{索引统计}
+
+\begin{table}[H]
+  \centering
+  \caption{各任务截图数量统计}
+  \label{tab:idx-summary}
+  \small
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{p{2.4cm}p{2.0cm}p{2.0cm}p{2.0cm}p{2.0cm}p{2.4cm}}
+    \toprule
+    任务编号 & 核心验收 & 辅助 & 问题 & 合计 & 主要目录 \\
+    \midrule
+    概述 & 0 & 3 & 0 & 3 & assets/report\_figures/ \\
+    T1 & 2 & 7 & 0 & 9 & assets/report\_figures/t1/ \\
+    T2 & 1 & 21 & 0 & 22 & assets/report\_figures/t2/, env/ \\
+    T3 & 3 & 8 & 1 & 12 & assets/report\_figures/t3/, figures\_A/T3/ \\
+    T4 & 4 & 3 & 0 & 7 & assets/report\_figures/t4/ \\
+    T5 & 1 & 6 & 0 & 7 & assets/report\_figures/t5/ \\
+    T6 & 2 & 8 & 0 & 10 & figures\_A/T6/ \\
+    A-0 & 1 & 7 & 2 & 10 & figures\_A/A-0/ \\
+    A-1 & 3 & 2 & 0 & 5 & figures\_B/A1/ \\
+    A-2 & 4 & 0 & 0 & 4 & figures\_B/A2/ \\
+    A-3 & 4 & 6 & 3 & 13 & figures\_B/A3/, figures\_A/A-3协助/ \\
+    附加题1 & 3 & 5 & 1 & 9 & figures\_A/附加题1/ \\
+    附加题2 & 5 & 1 & 2 & 9 & figures\_A/附加题2/, figures\_B/附加题2/ \\
+    \midrule
+    合计 & 33 & 77 & 9 & 119 & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent 说明：合计含第五章专索引中与上表“问题”类重复计数的 9 张故障截图；核心验收截图 33 张覆盖任务书 T1--T6 与 Spark A-0--A-3 的主要评分点，以及附加题 1、2 的验收材料。答辩时建议按“核心验收 $\rightarrow$ 辅助过程 $\rightarrow$ 问题排查”顺序组织演示。

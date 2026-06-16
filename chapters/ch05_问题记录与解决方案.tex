@@ -1,61 +1,181 @@
 \section{问题记录与解决方案}
 
-课程设计在实施过程中涉及 Docker 容器、华为云 CCE 集群、Kubernetes 资源编排、Spark Operator 以及分布式数据分析等多个技术环节。由于实验环境复杂、组件依赖关系较多，在部署与验证过程中遇到了一系列典型问题。通过查阅官方文档、分析日志信息以及反复验证配置参数，最终逐步完成问题定位与解决。本章对实验过程中具有代表性的问题及其解决过程进行总结，以反映项目实施中的真实排错过程和技术积累。
+课程设计在实施过程中涉及 Docker 容器构建、华为云 CCE 集群运维、Kubernetes 资源编排、Spark Operator 调度以及分布式数据分析等多个技术环节。由于实验环境依赖公网镜像仓库、跨组织 SWR 鉴权以及动态资源调度，部署与验证阶段不可避免地出现若干异常现象。本章仅记录具有代表性的故障现场及其定位思路，正常验收截图已在第三、四章对应任务中呈现；此处着重说明问题成因、排查依据与最终处理方式，以反映项目实施中的真实排错过程。
 
 \subsection{第一部分问题记录}
 
 \subsubsection{镜像构建与推送问题}
 
-在应用容器化阶段，首先遇到的问题是 Docker Hub 镜像拉取速度较慢甚至超时。例如在拉取 Redis、Alpine 等基础镜像时，多次出现网络连接超时、下载中断等情况，导致镜像构建无法正常完成。分析原因后发现，实验环境访问 Docker Hub 国际镜像仓库时网络延迟较高，部分镜像层下载不稳定。
+\paragraph{Docker Hub 基础镜像拉取超时}
 
-针对该问题，一方面采用多次重试方式完成镜像拉取；另一方面优先使用已经成功下载的镜像作为基础镜像进行构建，避免重复访问远程仓库。对于课程设计所需镜像，还通过华为云 SWR 镜像仓库进行统一管理，使后续 Kubernetes 集群能够直接从 SWR 拉取镜像，减少对 Docker Hub 的依赖。
+在 T1 应用容器化阶段，本地构建依赖 Redis、Alpine 等基础镜像。实验环境中访问 Docker Hub 国际仓库时多次出现连接超时或层下载中断，导致 \verb|docker build| 无法一次性完成。该问题属于网络链路不稳定所致，而非 Dockerfile 语法错误。处理方式为：对失败层多次重试拉取；优先复用本地已缓存镜像；最终将业务镜像统一推送至华为云 SWR，使 CCE 节点后续从国内镜像仓库拉取，降低对 Docker Hub 的依赖。
 
-在镜像推送阶段，还出现了镜像标签不一致导致 Pod 无法启动的问题。具体表现为 Deployment 中引用的镜像标签与 SWR 中实际存在的标签不一致，导致 Kubernetes 无法正确拉取业务镜像。通过重新核对镜像名称、组织名称以及版本标签，并统一采用固定版本号管理策略，最终解决了镜像引用错误的问题。
+\paragraph{镜像组织与标签不一致}
 
-此外，在 Spark 镜像构建过程中，还曾出现分析脚本未被正确打包到镜像中的问题。最初构建的 PySpark 镜像中缺少 \verb|analysis.py| 文件，导致 SparkApplication 提交后 Driver 容器无法找到入口程序。通过重新检查 Dockerfile 中的 COPY 指令，并验证镜像内部目录结构，最终成功将分析脚本打包至指定路径。
+小组分工中，后端与前端镜像由成员 B 构建，CCE 部署由成员 A 在组织 \verb|cloud-course-a| 下执行。若 Deployment 中引用的镜像地址、组织名或 Tag 与 SWR 实际资源不一致，Pod 将陷入 \verb|ImagePullBackOff|。排查时需逐项核对 \verb|swr.cn-north-4.myhuaweicloud.com/<组织>/<镜像>:<Tag| 是否与控制台一致，并统一采用固定版本号（如 \verb|v1|）管理，避免 \verb|latest| 标签漂移。
 
-\subsubsection{CCE部署与网络访问问题}
+\paragraph{PySpark 镜像未打包分析脚本}
 
-在 Kubernetes 应用部署过程中，最典型的问题是后端 Service 长时间处于 \verb|EXTERNAL-IP=<pending>| 状态。虽然 Deployment 和 Pod 已经正常运行，但外部访问入口始终无法生成，导致后端接口无法通过公网访问。
+Spark 镜像初次构建时，若 Dockerfile 中 \verb|COPY| 路径或构建上下文设置不当，镜像内可能缺少 \verb|analysis.py|、\verb|wordcount.py| 或 \verb|douban_movies.csv|。SparkApplication 提交后 Driver 虽能创建，但启动阶段即因找不到入口程序或数据文件而退出。解决方式为：在本地用 \verb|docker run --rm -it <镜像> ls /opt/spark/work| 验证文件清单，修正 Dockerfile 后重新构建并推送。
 
-通过分析发现，该问题并非应用本身故障，而是 LoadBalancer 类型 Service 尚未成功绑定华为云 ELB 资源。为解决该问题，在华为云控制台中创建共享型弹性负载均衡器，并通过 Service 注解指定 ELB 资源，随后 Service 成功获得公网 IP 地址，实现了后端接口的公网访问。
+\subsubsection{CCE 部署与网络访问问题}
 
-实验过程中还遇到了 kubectl 无法连接集群的问题。最初获得的 kubeconfig 文件使用的是 CloudShell 内网访问模式，其 API Server 地址为私有网络地址，仅能在特定网络环境下访问。当在独立 ECS 上使用该配置文件时，出现 API Server 连接超时错误。经过分析后确认问题来源于网络访问路径而非集群本身故障，后续通过重新获取正确的集群访问配置完成验证。
+\paragraph{私有 SWR 镜像拉取鉴权失败}
 
-此外，在 Service、ConfigMap 和 Secret 等资源部署过程中，也曾出现资源名称拼写错误、命名空间不一致等问题。由于 Kubernetes 对资源名称高度敏感，细微的拼写差异都会导致应用启动失败。通过使用 \verb|kubectl describe| 和 \verb|kubectl logs| 查看详细信息，逐步定位问题并完成修正。
+T3 应用部署后，backend 与 frontend Pod 曾出现 \verb|ErrImagePull| / \verb|ImagePullBackOff|。执行 \verb|kubectl describe pod| 查看 Events，可见 \verb|401 Unauthorized|，表明 CCE 节点无法匿名拉取私有 SWR 镜像。该问题与业务代码无关，而是镜像仓库权限配置缺失。处理方式为：确认集群命名空间中存在 \verb|default-secret|，并通过 \verb|imagePullSecrets| 将其绑定至 backend 与 frontend Deployment；修复后 Pod 能够正常拉取镜像并进入 Running 状态。
 
-\subsubsection{PVC与HPA验证问题}
+\paragraph{LoadBalancer Service 外部 IP 持续 Pending}
 
-在 Redis 持久化实验中，PVC 创建后曾出现无法立即绑定存储资源的情况。经过检查发现，PVC 绑定过程依赖底层存储插件和 StorageClass 配置，当存储资源尚未完成分配时，PVC 会短暂处于 Pending 状态。等待存储卷创建完成后，PVC 成功进入 Bound 状态，后续 Redis Pod 能够正常挂载持久化卷。
+\verb|backend-svc| 创建为 LoadBalancer 类型后，\verb|EXTERNAL-IP| 长时间显示 \verb|<pending>|，导致无法通过公网访问 \verb|/api/ping|。此时 Deployment 与 Pod 可能均已 Running，问题集中在 Service 与 ELB 的绑定环节。
 
-在持久化验证过程中，还需要通过删除 Pod 并观察自动重建后的数据是否保留来证明 PVC 生效。实验初期曾担心 Pod 删除后数据丢失，但经过实际验证，重新创建的 Redis Pod 仍然能够读取此前写入的数据，证明持久化存储配置正确。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/T3/15_问题现象_backend_svc外部IP持续Pending.png}
+  \caption{backend-svc 的 EXTERNAL-IP 持续为 \texttt{<pending>} 的故障现场}
+  \label{fig:ch5-svc-pending}
+\end{figure}
 
-在 HPA 验证阶段，由于弹性伸缩依赖 metrics-server 提供资源指标，因此必须首先确认集群能够正常采集 CPU 和内存使用率。实际测试过程中发现，指标更新存在一定延迟，导致副本数不会立即发生变化。经过持续压测和观察后，最终确认 HPA 能够根据负载变化自动调整副本数量。该现象也表明 Kubernetes 的自动伸缩机制具有一定稳定窗口，以避免因短时间波动导致频繁扩缩容。
+图 \ref{fig:ch5-svc-pending} 记录了 \verb|kubectl get svc| 的输出：\verb|backend-svc| 类型为 LoadBalancer，但外部 IP 尚未分配。进一步执行 \verb|kubectl describe svc backend-svc| 可见 CCE 提示未指定 \verb|kubernetes.io/elb.id| 或 \verb|loadBalancerIP|。解决步骤为：在华为云控制台创建共享型公网 ELB，再通过 Service 注解 \verb|kubernetes.io/elb.id=<ELB_ID>| 将负载均衡器绑定至 Service；绑定完成后 Service 获得公网 IP，接口访问恢复正常。
+
+\paragraph{kubectl 集群连接失败}
+
+实验初期曾使用 CloudShell 内网模式的 kubeconfig，其 API Server 地址为 VPC 内网地址，仅能在特定网络环境访问。将该配置复制至独立 ECS 后，\verb|kubectl| 报连接超时。经排查确认问题出在网络访问路径而非集群故障，需按使用场景重新下载公网或内网对应的 kubeconfig 文件。
+
+\paragraph{Kubernetes 资源命名不一致}
+
+在批量 apply YAML 资源时，若 ConfigMap、Secret 或 Service 名称与 Deployment 引用字段存在拼写差异或命名空间不一致，Pod 将因无法挂载配置或解析服务名而启动失败。此类问题需结合 \verb|kubectl describe| 与 \verb|kubectl logs| 中的 Events 与报错信息，对照 YAML 逐项修正。
+
+\subsubsection{PVC 与 HPA 验证问题}
+
+\paragraph{Redis PVC 短暂处于 Pending}
+
+T4 持久化实验中，\verb|redis-data-pvc| 创建后曾短暂处于 Pending 状态。PVC 绑定依赖 StorageClass \verb|csi-disk| 与 Everest 存储插件向底层云硬盘申请卷，资源分配需要一定时间。等待云硬盘创建完成后，PVC 进入 Bound 状态，Redis Pod 即可正常挂载；该现象属于存储Provisioning 的正常等待，而非配置错误。
+
+\paragraph{HPA 压测与指标采集异常}
+
+T6 弹性伸缩验证中遇到三类非致命但影响观测的问题。第一，CloudShell 未预装 \verb|ab|，需改用多进程 \verb|curl| 循环模拟并发负载。第二，停止压测后副本数未及时下降，排查发现多个 \verb|while true; do curl ...; done| 后台任务仍在运行，导致 CPU 指标持续偏高；须通过 \verb|jobs -l|、\verb|pgrep -af curl| 清理残留进程后，HPA 方能触发缩容。第三，HPA 重建后短时间内 CURRENT 指标显示 \verb|<unknown>/60%|，系 Metrics Server 对新 Pod 的指标采集存在延迟，等待约 1 分钟后指标恢复可读。上述问题均已在第三章 T6 实验中处理完毕，此处仅作排错经验归纳。
 
 \subsection{第二部分问题记录}
 
-\subsubsection{Spark作业提交问题}
+\subsubsection{Spark Operator 与作业提交问题}
 
-在 Spark Operator 实验过程中，首先遇到的问题是镜像拉取失败。由于 Spark Operator 默认引用的公共镜像仓库访问速度较慢，导致 Driver Pod 长时间处于镜像拉取阶段。为保证实验顺利进行，将所需镜像同步至华为云 SWR，并统一修改 SparkApplication 中的镜像地址，从而提高镜像获取效率。
+\paragraph{Spark Operator 默认镜像拉取失败}
 
-在提交 WordCount 和数据分析任务时，还出现过 SparkApplication 创建成功但 Driver Pod 无法正常运行的问题。经过排查发现，部分镜像中缺少分析脚本文件或数据文件。例如镜像中仅包含 Spark 运行环境，而未包含 \verb|analysis.py| 或 \verb|douban_movies.csv|，导致 Driver 启动后立即报错退出。
+A-0 环境部署时，\verb|spark-operator-controller| 与 \verb|spark-operator-webhook| 默认引用 \verb|ghcr.io/kubeflow/spark-operator| 镜像，在当前网络环境下拉取不稳定，Pod 长时间处于镜像拉取阶段。处理方式为：将 Operator 镜像同步至华为云 SWR，修改 Deployment 镜像地址，并在 \verb|spark-operator| 命名空间绑定 \verb|imagePullSecrets|。
 
-针对该问题，重新构建 PySpark 镜像，将分析脚本、数据集以及 WordCount 示例程序统一打包到镜像中，并通过 Docker 容器验证镜像内部文件是否存在。经过重新推送镜像后，SparkApplication 能够顺利完成运行。
+\paragraph{Driver 内存低于 Spark 最低要求}
 
-此外，在性能分析实验中，还遇到 Pandas 和 Matplotlib 依赖缺失的问题。由于基础 PySpark 镜像未预装相关 Python 数据分析库，导致性能对比代码无法正常执行。后续通过在 Dockerfile 中安装 Pandas 和 Matplotlib，并重新构建镜像，成功解决依赖缺失问题。
+WordCount 与 A-3 性能测试均曾将 Driver 内存设为 \verb|256m|。Spark 对 Driver 进程存在最低内存约束（约 450 MiB 以上），低于阈值时 Driver 启动后立即失败。
 
-\subsubsection{OBS或本地数据读取问题}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/A-0/问题现象_WordCountDriver启动后Error.png}
+  \caption{WordCount 作业 Driver Pod 启动后进入 Error 状态}
+  \label{fig:ch5-driver-error}
+\end{figure}
 
-在数据分析实验中，数据集读取路径配置也是一个重要问题。最初提交 Spark 作业时，程序默认读取本地路径中的 CSV 文件，但镜像内部并不存在对应文件，导致 Spark 报出“Path does not exist”错误。
+图 \ref{fig:ch5-driver-error} 显示 SparkApplication 已创建，但 Driver Pod 状态为 Error，说明调度链路正常而运行参数不满足 Spark 要求，需进一步查看 Driver 日志。
 
-经过分析后发现，Spark Driver 运行环境与本地开发环境并不一致，必须保证数据文件位于镜像内部指定位置，或通过对象存储服务进行远程访问。因此后续选择将豆瓣电影数据集直接打包到镜像中，并统一放置于 \verb|/opt/spark/work| 目录，从而确保 Driver 和 Executor 能够访问同一数据源。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/A-0/问题原因_Driver内存256m低于Spark最低要求.png}
+  \caption{Driver 日志中的 \texttt{INVALID\_DRIVER\_MEMORY} 错误信息}
+  \label{fig:ch5-driver-memory}
+\end{figure}
 
-该问题说明，在分布式环境中必须明确数据与程序的部署位置，仅在本地验证成功并不能保证集群环境能够正常运行。
+图 \ref{fig:ch5-driver-memory} 明确给出失败原因：\verb|256m| 低于 Spark 允许的 Driver 内存下限。将 Driver 与 Executor 内存均调整为 \verb|1g| 后，作业能够正常启动并完成。
 
-\subsubsection{性能测试误差问题}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_B/A3/a3-invalid-driver-memory.png}
+  \caption{A-3 性能测试中复现的同类 Driver 内存配置错误}
+  \label{fig:ch5-a3-invalid-memory}
+\end{figure}
 
-在 Pandas 与 PySpark 性能对比实验中，实验结果并未呈现理想情况下的线性加速现象。理论上 Executor 数量增加后应获得更高的执行效率，但实际测试结果受到任务启动开销、数据规模、序列化开销和 Shuffle 通信等多种因素影响。
+图 \ref{fig:ch5-a3-invalid-memory} 表明该问题在 A-3 阶段同样出现，说明内存参数需在 SparkApplication YAML 中统一规范，而非仅针对 WordCount 一次性修正。
 
-特别是在数据规模相对有限的情况下，Spark 作业的启动时间和资源调度时间占据了较大比例，使得并行计算优势无法完全体现。此外，不同运行环境之间的缓存状态、CPU 资源占用情况以及网络负载差异，也会对最终结果产生一定影响。
+\paragraph{集群资源不足导致 Executor Pending}
 
-为降低实验误差，本项目统一采用相同数据集和相同查询逻辑进行比较，并结合 Amdahl 定律对加速比进行分析，而不是单纯以运行时间长短评价并行计算性能。通过理论与实验结果相结合的方式，更能够客观反映分布式计算系统的实际性能特征。
+初始集群仅配置 2 个 \verb|c9.large.2| 节点（各 2 vCPU / 4 GiB），Spark 作业申请 2 个 Executor 时，调度器因节点可分配内存不足而无法完成调度，Executor Pod 长期处于 Pending 状态。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_B/A3/a3-exec1-pending-insufficient-resource.png}
+  \caption{Executor Pod 因节点内存不足而处于 Pending 状态}
+  \label{fig:ch5-exec-pending}
+\end{figure}
+
+图 \ref{fig:ch5-exec-pending} 中 \verb|kubectl get pods| 显示 Executor 未被调度至任何节点。结合 \verb|kubectl describe pod| 可见 \verb|Insufficient memory| 事件。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_B/A3/a3-exec1-executor-resource-waiting.png}
+  \caption{Executor 等待 Kubernetes 调度器分配资源}
+  \label{fig:exec-waiting}
+\end{figure}
+
+图 \ref{fig:exec-waiting} 进一步展示调度器正在尝试为 Executor 分配资源的等待状态。处理方式为：在 CCE 控制台新增 2 个 \verb|c9.large.4| Worker 节点，扩充集群可调度资源后，Executor 成功创建并运行。
+
+\paragraph{跨组织 SWR 镜像拉取权限不足}
+
+A-3 使用的 PySpark 镜像位于成员 B 的 SWR 组织 \verb|xinchunli|，而 Spark 作业默认 ServiceAccount 未绑定对应镜像拉取密钥，Driver 或 Executor 拉取镜像时报权限错误。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_B/A3/a3-permission-denied-error.png}
+  \caption{Spark Pod 拉取跨组织私有镜像时的权限拒绝错误}
+  \label{fig:ch5-permission-denied}
+\end{figure}
+
+图 \ref{fig:ch5-permission-denied} 显示镜像拉取阶段出现 \verb|permission denied| 或 \verb|401| 类错误。解决方式为：在作业命名空间创建指向目标 SWR 的 \verb|imagePullSecrets|，并将其绑定至 Spark 使用的 ServiceAccount，使 Pod 具备拉取跨组织镜像的凭证。
+
+\paragraph{Python 依赖库缺失}
+
+A-3 性能对比脚本依赖 Pandas 与 Matplotlib，基础 PySpark 镜像未预装上述库，Driver 执行至性能测试阶段时抛出 \verb|ModuleNotFoundError|。通过在 Dockerfile 中显式安装依赖并重新构建推送镜像解决。
+
+\subsubsection{数据读取与路径配置问题}
+
+Spark Driver 运行于容器内，与本地开发环境的文件路径并不相同。若 SparkApplication 中数据路径仍指向宿主机或本地仓库路径，而镜像内未包含对应 CSV 文件，作业将报 \verb|Path does not exist|。分布式环境下必须保证数据文件已打入镜像固定目录（如 \verb|/opt/spark/work|），或通过 OBS \verb|s3a://| 路径远程读取；仅在本地 \verb|spark-submit| 成功并不能保证 Kubernetes 环境可复现。
+
+\subsubsection{性能对比结果的非线性现象}
+
+A-3 实验中，Pandas 单机耗时（0.50 s）低于 PySpark 单 Executor（1.15 s）与双 Executor（1.16 s），增加 Executor 未带来加速。这并非实验操作失误，而是小数据集下 Spark 启动开销、任务调度、Shuffle 与 K8s Pod 创建成本占比较高所致。该现象已在第四章结合 Amdahl 定律分析；本章不再重复展示性能对比图，仅将其作为分布式计算适用边界的问题加以记录。
+
+\subsubsection{云原生监控部署问题}
+
+附加题监控部署时，执行 \verb|helm repo add| 添加 Prometheus 官方 Chart 仓库失败，默认仓库托管于 GitHub Pages，在当前网络环境下 index 下载反复超时。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/附加题1/问题现象_Helm仓库index下载连接超时.png}
+  \caption{Helm 拉取远程 Chart 仓库 index 时连接超时}
+  \label{fig:ch5-helm-timeout}
+\end{figure}
+
+图 \ref{fig:ch5-helm-timeout} 记录了 \verb|helm repo add| 或 \verb|helm repo update| 阶段的网络超时错误。处理方式为：在本地下载 \verb|kube-prometheus-stack| Chart 离线包，通过 \verb|helm install| 本地路径完成安装，绕过对 GitHub Pages 的实时访问依赖。监控组件部署成功后的运行状态与 Grafana 面板已在实验材料中单独归档，不属于故障现场，故本章不再重复插图。
+
+\subsubsection{CI/CD 流水线部署问题}
+
+附加题 CI/CD 验证初期，曾尝试在 GitHub Actions hosted runner 中直接执行 \verb|kubectl set image| 更新 CCE Deployment，排查中遇到两类障碍：其一，CloudShell 导出的 kubeconfig 依赖本地证书与私钥文件，且私钥并非 runner 可直接解析的标准 PEM 格式，报错 \verb|tls: failed to find any PEM data in key input|；其二，kubeconfig 默认指向 CCE 内网 API Server 地址，公网 runner 无法访问该内网端点。为保证流程稳定可复现，最终将 Actions 职责收敛为自动构建并推送 SWR，再由 CloudShell 使用同一镜像 Tag 完成 Deployment 更新。
+
+Deployment 镜像切换后，曾在 CloudShell 中直接访问 \verb|backend-svc| 的 ClusterIP 出现连接超时，见图 \ref{fig:ch5-cicd-svc-timeout}。进一步通过 \verb|kubectl exec deploy/backend| 从集群内访问 \verb|backend-svc/api/ping|，返回 \verb|{"redis":"connected","status":"ok"}|，见图 \ref{fig:ch5-cicd-svc-ok}，说明 Service 与后端接口正常，问题与 CloudShell 到 ClusterIP 的访问路径有关，而非应用本身故障。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/附加题2/07_issue_backend_service_timeout_after_update.png}
+  \caption{CI/CD 更新后 CloudShell 直接访问 backend-svc ClusterIP 超时}
+  \label{fig:ch5-cicd-svc-timeout}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures_A/附加题2/08_fix_backend_service_access_from_pod_ok.png}
+  \caption{从 backend Pod 内访问 backend-svc 接口验证成功}
+  \label{fig:ch5-cicd-svc-ok}
+\end{figure}
+
+\subsection{本章小结}
+
+本章按实施顺序归纳了课程设计中的主要故障及其处理路径。第一部分中，Docker Hub 拉取不稳定与 SWR 组织/标签不一致影响镜像交付；CCE 部署阶段私有镜像 \verb|401| 鉴权失败与 LoadBalancer 外部 IP Pending 是阻碍公网访问的关键瓶颈；HPA 验证则暴露了压测工具缺失、后台进程残留与指标采集延迟等运维细节。第二部分中，Spark Operator 与 PySpark 作业先后遇到公共镜像拉取困难、Driver 内存低于下限、集群资源不足、跨组织镜像权限拒绝以及 Python 依赖缺失等问题；数据路径配置不当会导致分布式环境下文件找不到；性能对比的非线性结果则提示须结合数据规模解读并行收益。附加题中，监控部署的 Helm 远程仓库访问超时通过离线 Chart 安装解决；CI/CD 验证则因 kubeconfig 私钥格式与内网 API Server 限制，改为 Actions 构建推送 SWR 与 CloudShell 半自动更新 Deployment 的协作模式。
+
+上述问题的共同特征在于：表象往往出现在 Pod 状态或 Service 字段，根因却可能位于网络连通性、镜像权限、资源配额或配置参数等不同层面。通过 \verb|kubectl describe|、Pod 日志与控制台 Events 进行交叉验证，逐项排除假设，是云原生环境排错的基本方法。这些经验为项目最终验收提供了保障，也为后续类似场景的故障定位积累了可参考的处理流程。

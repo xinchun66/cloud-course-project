@@ -1,6 +1,6 @@
 \section{第一部分：云计算平台搭建}
 
-本章对应课程设计任务书第一部分“云计算平台搭建”，总分 50 分。该部分以“Flask 后端 API + Redis 数据库 + Nginx 前端页面”为应用对象，完成从本地容器化联调到华为云 CCE 集群部署的全过程。报告按照任务书 T1 至 T6 的顺序组织：T1 说明应用容器化与 SWR 镜像推送；T2 说明 CCE 集群搭建与节点 Ready 验证；T3 说明 Kubernetes 资源部署与公网接口访问；T4 说明 Redis PVC 持久化验证；T5 说明 Nginx 配置以 ConfigMap Volume 形式挂载；T6 说明 HPA 弹性伸缩配置及当前仍需补充的验收截图。
+本章对应课程设计任务书第一部分“云计算平台搭建”，总分 50 分。该部分以“Flask 后端 API + Redis 数据库 + Nginx 前端页面”为应用对象，完成从本地容器化联调到华为云 CCE 集群部署的全过程。报告按照任务书 T1 至 T6 的顺序组织：T1 说明应用容器化与 SWR 镜像推送；T2 说明 CCE 集群搭建与节点 Ready 验证；T3 说明 Kubernetes 资源部署与公网接口访问；T4 说明 Redis PVC 持久化验证；T5 说明 Nginx 配置以 ConfigMap Volume 形式挂载；T6 说明 HPA 弹性伸缩的配置、压测验证与扩缩容结果分析。
 
 \subsection{任务1：应用容器化}
 
@@ -119,6 +119,16 @@ Redis Deployment 名称为 \verb|redis|，副本数为 1，镜像为 \verb|redis
 \reportfig{assets/report_figures/t3/t3-04-services-elb.png}{Service 列表与 ELB 公网 IP 截图}{fig:t3-services-elb}
 
 图 \ref{fig:t3-services-elb} 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，并已经获得 ELB 公网 IP。该截图说明公网访问入口已经建立。
+
+为解决 Pending 问题，在华为云控制台手动创建共享型公网 ELB，并将负载均衡器绑定至 Service。图 \ref{fig:t3-elb-create} 与图 \ref{fig:t3-elb-running} 记录了 ELB 创建配置与运行中状态，与第五章 LoadBalancer Pending 故障的解决路径相对应。
+
+\reportfig{figures_A/T3/13_ELB创建配置概要.png}{手动创建共享型公网 ELB 的配置概要}{fig:t3-elb-create}
+
+\reportfig{figures_A/T3/14_ELB负载均衡器运行中.png}{ELB 负载均衡器创建成功并处于运行中}{fig:t3-elb-running}
+
+部署前需确认 SWR 中业务镜像 Tag 与 Deployment 引用一致。图 \ref{fig:t3-swr-tag-check} 显示 \verb|cloud-course-a| 组织下 \verb|backend:v1| 与 \verb|frontend:v1| 均已存在，避免镜像标签不一致导致拉取失败。
+
+\reportfig{figures_A/T3/12_SWR镜像确认backend和frontend_v1.png}{SWR 中 backend 与 frontend 镜像 Tag 核对}{fig:t3-swr-tag-check}
 
 \subsubsection{Redis ClusterIP Service配置}
 
@@ -260,26 +270,80 @@ ConfigMap 通过 \verb|envFrom| 注入时，适合传递短小的键值型配置
 
 \subsection{任务6：HPA弹性伸缩}
 
-任务 6 要求为后端 Deployment 配置 HPA，并通过压测证明后端 Pod 能够从 1 个扩展到 2 个或更多，停止压测后再缩回 1 个。当前仓库中已经存在 \verb|k8s/backend-hpa.yaml|，但未发现 T6 对应的 metrics-server、HPA 状态、压测、扩容和缩容截图。因此，本节只基于现有 YAML 文件说明 HPA 配置设计，并明确列出后续需要补充的验收材料，不对尚未提供截图的实验结果进行虚构。
+任务 6 要求为后端 Deployment 配置 Horizontal Pod Autoscaler（HPA），并通过负载压测验证 Pod 副本数能够随 CPU 利用率动态调整：在压测期间由 1 个扩展至 2 个或更多，停止压测并等待稳定窗口结束后缩回 1 个。HPA 是 Kubernetes 实现应用层弹性伸缩的核心机制，其决策依赖 Metrics Server 采集的资源指标，因此本任务既考察 HPA 资源配置的正确性，也考察指标链路可用性与扩缩容行为的可观测性。
 
-\subsubsection{metrics-server可用性验证}
+实验在已完成 T3 部署的 CCE 集群上进行。伸缩目标为 \verb|backend| Deployment，对外压测入口为 \verb|backend-svc| 绑定的 ELB 公网地址，压测路径为 \verb|/api/ping|。为便于观察副本变化，实验前先将 backend 副本数手动调整为 1，再创建 HPA 资源并施加持续并发请求，最后清理压测进程并观察自然缩容过程。
 
-HPA 依赖 metrics-server 提供 CPU、内存等指标数据。任务书要求先执行 \verb|kubectl top nodes| 验证 metrics-server 可用。当前文件夹中没有 \verb|kubectl top nodes| 截图，因此该项截图需要后续补充。建议补充截图时确保输出中包含节点名称、CPU 使用量、CPU 使用率、内存使用量和内存使用率，以证明 HPA 能够获取资源指标。
+\subsubsection{Metrics Server可用性验证}
+
+HPA 控制器本身不直接采集 Pod 资源使用情况，而是基于 Metrics Server 提供的聚合指标计算期望副本数。因此，在创建 HPA 之前，需要确认集群中 Metrics Server 已安装且 \verb|kubectl top| 命令能够返回有效数据。实验中通过 \verb|kubectl get pods -n kube-system| 确认 Metrics Server Pod 处于 Running 状态，并执行 \verb|kubectl top nodes| 查看各 Worker 节点的 CPU 与内存使用量。
+
+\reportfig{figures_A/T6/01_metrics_server可用top_nodes.png}{Metrics Server 可用性及节点资源指标验证截图}{fig:t6-metrics-server}
+
+图 \ref{fig:t6-metrics-server} 表明 Metrics Server 工作正常，\verb|kubectl top nodes| 能够输出节点名称、CPU 使用量、CPU 使用率、内存使用量及内存使用率。该结果是 HPA 能够读取 Pod CPU 指标并进行扩缩容决策的前提条件；若 Metrics Server 不可用，HPA 的 CURRENT 指标将长期显示为 \verb|<unknown>|，控制器无法触发有效伸缩。
 
 \subsubsection{后端HPA资源配置}
 
-现有 \verb|backend-hpa.yaml| 使用 \verb|autoscaling/v2| API，HPA 名称为 \verb|backend-hpa|，作用目标为 \verb|backend| Deployment。配置中 \verb|minReplicas=1|、\verb|maxReplicas=4|，CPU 平均利用率目标为 60\%。这与任务书要求一致，表示当后端 Pod 的平均 CPU 利用率持续超过目标阈值时，HPA 控制器会增加副本数，最高扩展到 4 个。
+本项目 HPA 定义见 \verb|k8s/backend-hpa.yaml|，采用 \verb|autoscaling/v2| API，资源名称为 \verb|backend-hpa|，作用对象为 \verb|backend| Deployment。关键参数设置为 \verb|minReplicas=1|、\verb|maxReplicas=4|，并以 Pod 平均 CPU 利用率为伸缩依据，目标值为 60\%。该配置与任务书模板一致：当 backend Pod 的平均 CPU 利用率持续高于 60\% 时，HPA 控制器逐步增加副本数，上限为 4；当负载降低并满足缩容稳定窗口要求后，副本数回落至最小值 1。
 
-\subsubsection{压测方法与扩容过程截图}
+\reportfig{figures_A/T6/02_HPA资源创建成功.png}{backend-hpa 资源创建成功截图}{fig:t6-hpa-created}
 
-任务书推荐使用 \verb|ab -n 10000 -c 200 http://<ELB_IP>/api/ping| 对后端接口发起并发压测，并在另一个终端中执行 \verb|kubectl get pods -w| 观察后端 Pod 扩容过程。当前文件夹中没有压测过程截图和 Pod 扩容截图，因此该项验收材料仍需补充。补充时建议至少保留两类截图：一是压测命令及其并发请求输出；二是 \verb|kubectl get pods -w| 中 backend Pod 数量从 1 增加到 2 个或更多的时刻。
+图 \ref{fig:t6-hpa-created} 显示 \verb|backend-hpa| 已成功创建，CURRENT 指标与 TARGET 指标均为 CPU 利用率，副本数范围限定在 1 至 4 之间。
 
-\subsubsection{停止压测后的缩容过程截图}
+\reportfig{figures_A/T6/03_HPA初始状态minReplicas为1.png}{HPA 初始状态及副本上下限配置截图}{fig:t6-hpa-initial}
 
-停止压测后，HPA 不会立即缩容，而是需要等待指标下降、控制器重新评估以及稳定窗口结束。当前文件夹中没有停止压测后的缩容截图，因此该项也需补充。建议截图中显示 backend Pod 数量回落到 1，并同时保留 \verb|kubectl get hpa| 或 \verb|kubectl describe hpa backend-hpa| 输出，用于解释当前副本数、目标 CPU 利用率和事件记录。
+图 \ref{fig:t6-hpa-initial} 进一步展示了 HPA 的详细配置，包括最小副本数、最大副本数及 CPU 目标阈值。实验开始时 backend 仅运行 1 个 Pod，HPA 当前副本数与期望值均为 1，为后续观察扩容过程提供了清晰的初始基线。
 
-\subsubsection{扩容延迟、冷却时间与降本价值分析}
+\subsubsection{压测方法与扩容过程验证}
 
-HPA 扩容存在延迟，主要原因包括 metrics-server 指标采集周期、HPA 控制器评估周期、Deployment 创建新 Pod 的调度与镜像启动时间等。缩容通常比扩容更保守，这是为了避免短时间指标波动导致副本数频繁上下抖动。对于课程设计中的后端服务而言，HPA 的价值在于高负载时自动增加副本保障服务可用性，低负载时自动减少副本降低资源占用和云资源成本。
+任务书建议使用 ApacheBench 对公网入口发起高并发请求。本实验环境中 CloudShell 未预装 \verb|ab| 工具，因此采用任务书允许的替代方案：通过 Shell 循环启动多个后台 \verb|curl| 进程，对 \verb|http://<ELB_IP>/api/ping| 持续发起 HTTP 请求，以模拟后端接口的高并发访问场景。压测期间，在另一终端周期性执行 \verb|kubectl get hpa| 与 \verb|kubectl get pods -l app=backend|，同步观察 CPU 指标与 Pod 数量变化。
 
-需要说明的是，由于当前仓库未提供 T6 实际压测和扩缩容截图，本报告在本节中不将 HPA 判定为已完成验收。后续若补充 \verb|kubectl top nodes|、\verb|kubectl get hpa|、压测输出、扩容截图和缩容截图，即可将本节从“配置说明”完善为“完整验收记录”。
+\reportfig{figures_A/T6/04_压测命令开始执行.png}{curl 循环压测命令启动截图}{fig:t6-stress-start}
+
+图 \ref{fig:t6-stress-start} 记录了压测脚本启动过程。多个后台 \verb|curl| 任务同时运行后，backend Pod 的 CPU 利用率逐步上升，HPA 控制器据此判定当前副本数不足以消化负载。
+
+\reportfig{figures_A/T6/05_HPA触发扩容状态.png}{压测触发 HPA 扩容的中间状态截图}{fig:t6-hpa-scaling}
+
+图 \ref{fig:t6-hpa-scaling} 显示压测进行一段时间后，\verb|backend-hpa| 的 CURRENT CPU 指标已超过 60\% 的目标阈值，控制器开始增加 backend 副本数。该过程体现了 HPA 基于资源利用率进行闭环调节的基本逻辑。
+
+\begin{figure}[H]
+  \centering
+  {\setlength{\fboxsep}{0pt}\setlength{\fboxrule}{1.2pt}\fcolorbox{red}{white}{\includegraphics[width=0.88\textwidth]{figures_A/T6/06_【验收】Pod数量从1扩容到2或更多.png}}}
+  \caption{核心验收：压测期间 backend Pod 由 1 个扩容至 4 个}
+  \label{fig:t6-scale-up}
+\end{figure}
+
+图 \ref{fig:t6-scale-up} 为 T6 核心验收截图之一。可以观察到，在持续压测条件下，backend Pod 数量由初始的 1 个增加至 4 个，满足任务书“扩容至 2 个或更多”的要求。扩容结果说明 HPA 与 Deployment 的协同机制生效：HPA 根据指标调整 \verb|spec.replicas|，Deployment 控制器据此创建新的 Pod 并完成调度。
+
+\subsubsection{停止压测后的缩容过程验证}
+
+停止压测后，HPA 并不会立即减少副本数。Kubernetes 为缩容设置了稳定窗口（stabilization window），以避免因指标瞬时波动导致副本数频繁震荡。实验中首先终止前台压测命令，随后通过 \verb|jobs -l| 与 \verb|pgrep -af curl| 排查并清理仍在运行的后台 \verb|curl| 循环任务；若残留进程持续发送请求，CPU 指标将长期高于目标值，HPA 便无法进入缩容阶段。
+
+\reportfig{figures_A/T6/07_停止压测后HPA缩容状态.png}{停止压测后 HPA 处于缩容过渡状态截图}{fig:t6-scale-down-transition}
+
+图 \ref{fig:t6-scale-down-transition} 展示了停止压测后、副本数尚未完全回落的过渡状态。该截图说明缩容过程存在可观测的延迟：Metrics Server 指标采集、HPA 重新评估以及缩容稳定窗口共同作用，使副本数变化滞后于负载变化，这符合 Kubernetes 自动伸缩的设计预期。
+
+\begin{figure}[H]
+  \centering
+  {\setlength{\fboxsep}{0pt}\setlength{\fboxrule}{1.2pt}\fcolorbox{red}{white}{\includegraphics[width=0.88\textwidth]{figures_A/T6/08_【验收】Pod数量缩回1个.png}}}
+  \caption{核心验收：清理压测进程后 backend Pod 自然缩容至 1 个}
+  \label{fig:t6-scale-down}
+\end{figure}
+
+图 \ref{fig:t6-scale-down} 为 T6 另一核心验收截图。在确认全部后台 \verb|curl| 任务已终止且 CPU 指标降至目标值以下后，\verb|backend-hpa| 将 CURRENT 指标恢复为约 \verb|1%/60%|，backend Pod 数量自然回落为 1。该结果验证了 HPA 缩容链路的完整性，表明弹性伸缩不仅能够在高负载时扩容，也能够在负载消除后回收多余计算资源。
+
+实验结束后，删除并重新应用 \verb|k8s/backend-hpa.yaml|，使集群中的 HPA 配置与仓库模板保持一致，便于后续复现与检查。
+
+\reportfig{figures_A/T6/09_HPA详情describe分析材料.png}{kubectl describe hpa 输出的 HPA 详情截图}{fig:t6-hpa-describe}
+
+\reportfig{figures_A/T6/10_HPA恢复标准配置后状态.png}{HPA 恢复标准配置后的最终状态截图}{fig:t6-hpa-final}
+
+图 \ref{fig:t6-hpa-describe} 与图 \ref{fig:t6-hpa-final} 分别展示了 HPA 的事件记录与恢复标准配置后的状态。前者可用于分析扩缩容触发条件与控制器行为，后者确认 \verb|minReplicas=1|、\verb|maxReplicas=4| 及 CPU 目标 60\% 等参数与任务书要求一致。
+
+\subsubsection{实验问题与处理}
+
+本任务实施过程中遇到三类典型问题。其一，CloudShell 环境缺少 \verb|ab| 工具，已通过多进程 \verb|curl| 循环替代并发压测，效果等价于对后端接口施加持续负载。其二，初次停止压测后副本数未及时下降，经排查发现多个 \verb|while true; do curl ...; done| 后台任务仍在运行；使用 \verb|kill| 与 \verb|pkill -f| 清理残留进程后，CPU 指标恢复正常，HPA 随即触发缩容。其三，HPA 重建后短时间内出现 \verb|<unknown>/60%| 指标，系 Metrics Server 对新 Pod 的指标采集存在延迟所致，等待约 1 分钟后指标恢复可读，HPA 计算结果趋于稳定。
+
+\subsubsection{扩容延迟、冷却机制与工程意义分析}
+
+综合上述实验过程，HPA 扩缩容行为呈现出“扩容相对积极、缩容相对保守”的特征。扩容延迟主要来源于 Metrics Server 采集周期、HPA 控制器评估间隔、Pod 调度与容器启动时间等环节；缩容则受稳定窗口约束，需等待指标持续低于阈值后才逐步减少副本。对于本课程设计中的 Flask 后端而言，HPA 的工程价值体现在两方面：在访问高峰时自动增加副本以分担请求压力，提升服务可用性；在负载回落后自动回收多余 Pod，降低 CCE 节点的 CPU 占用与按需计费成本。T6 实验结果表明，本项目 backend 服务的 HPA 配置正确、指标链路可用，扩缩容行为符合 Kubernetes 自动伸缩机制的预期，任务验收要求已得到满足。

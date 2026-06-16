@@ -1,0 +1,219 @@
+\section{附加题实践}
+
+在完成 Spark 大数据分析基础任务之后，本项目进一步尝试完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 AI 训练。三类附加题分别对应可观测性、持续交付与分布式深度学习三个云原生方向，与第一部分的 Kubernetes 部署、第二部分的 Spark 并行计算形成能力延伸。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署与 CI/CD 云端验证主要由成员 A 在 CCE 环境完成并提交截图，成员 B 负责原理整理与报告撰写。
+
+\subsection{附加题1：云原生监控系统}
+
+\subsubsection{部署环境与组件状态}
+
+附加题 1 要求在 CCE 集群中部署 Prometheus + Grafana 或等价监控组件，并展示节点 CPU 利用率、Pod 内存使用等指标。本实验在 \verb|cloud-course-cce| 集群中安装华为云 CCE 云原生监控插件 \verb|kube-prometheus-stack|，在 \verb|monitoring| 命名空间部署 Prometheus、Alertmanager、Prometheus Operator、kube-state-metrics 与 node-exporter 等组件。
+
+部署过程中，默认 Prometheus Helm 仓库因网络原因出现 index 下载超时（详见第五章）。最终采用离线 Chart 包方式完成安装，图 \ref{fig:bonus1-helm-offline} 记录了本地下载 \verb|kube-prometheus-stack| Chart 包的过程，作为绕过远程 Helm 仓库的解决措施。
+
+\reportfig{figures_A/附加题1/问题解决_离线下载kube-prometheus-stackChart包.png}{离线下载 kube-prometheus-stack Chart 包}{fig:bonus1-helm-offline}
+
+组件就绪后，\verb|monitoring| 命名空间内核心 Pod 均处于 Running 状态，Prometheus 本地数据通过 PVC 持久化存储。
+
+\reportfig{figures_A/附加题1/04_云原生监控相关Pod运行中.png}{monitoring 命名空间监控组件 Pod 运行状态}{fig:bonus1-pods}
+
+图 \ref{fig:bonus1-pods} 显示 alertmanager、prometheus-server、prometheus-operator、kube-state-metrics 及 node-exporter 等组件均已正常运行，说明监控栈部署成功。
+
+\reportfig{figures_A/附加题1/05_云原生监控Service列表.png}{monitoring 命名空间 Service 列表}{fig:bonus1-svc}
+
+\reportfig{figures_A/附加题1/06_监控本地存储PVC状态.png}{Prometheus 数据 PVC Bound 状态}{fig:bonus1-pvc}
+
+图 \ref{fig:bonus1-svc} 与图 \ref{fig:bonus1-pvc} 表明 Prometheus 服务入口与 10Gi 持久化卷均已就绪。通过 \verb|kubectl port-forward -n monitoring svc/prometheus-server 9090:9090| 可将 Prometheus Web 界面映射到本地端口，图 \ref{fig:bonus1-portforward} 表明端口转发成功，服务可被访问和进一步验证。
+
+\reportfig{figures_A/附加题1/07_Prometheus端口转发成功.png}{Prometheus 服务端口转发至本地 9090}{fig:bonus1-portforward}
+
+\reportfig{figures_A/附加题1/07_云原生监控插件运行中_控制台.png}{CCE 控制台云原生监控插件运行中}{fig:bonus1-plugin}
+
+图 \ref{fig:bonus1-plugin} 表明 \verb|kube-prometheus-stack| 插件已在 CCE 插件中心处于运行中状态，与集群内 Pod 状态相互印证。
+
+\subsubsection{Prometheus Pull 采集原理}
+
+Prometheus 采用 \textbf{Pull（拉取）} 模式采集指标，而非由被监控对象主动推送。Prometheus Server 根据配置文件中的 scrape 任务与服务发现规则，周期性向各 Exporter 或应用暴露的 \verb|/metrics| HTTP 端点发起请求，读取当前指标快照并写入本地时序数据库（TSDB）。
+
+在 Kubernetes 环境中，Prometheus 通常与 Prometheus Operator、ServiceMonitor、PodMonitor 以及 Kubernetes 服务发现机制协同工作。各组件分工如下：
+
+\begin{itemize}
+  \item \textbf{node-exporter}：部署于各节点，暴露 CPU、内存、磁盘、网络等主机级指标；
+  \item \textbf{kube-state-metrics}：以 Deployment、Pod、PVC、Service 等资源为对象，暴露集群状态指标；
+  \item \textbf{Prometheus Operator}：以 CRD 方式声明 Prometheus、Alertmanager 等实例，简化配置管理；
+  \item \textbf{业务应用}：若暴露 \verb|/metrics| 端点，亦可被 ServiceMonitor 纳入采集范围。
+\end{itemize}
+
+Pull 模式的优势在于：采集入口统一、Target 健康状态可在 Prometheus 控制台直接观测、采集失败易于告警；在 Pod 动态创建与销毁的 Kubernetes 场景下，配合服务发现能够自动发现新监控对象。与之相对，Push 模式更适合短生命周期批处理任务，而 Pull 模式更契合长期运行的云原生服务监控。
+
+\subsubsection{关键监控指标说明}
+
+CCE 云原生观测面板与 Grafana 仪表板展示了集群级与工作负载级两类指标。本实验重点解读以下指标含义：
+
+\paragraph{CPU 使用率}
+
+表示节点或工作负载当前实际消耗的 CPU 占其可用资源或 Limit 的比例。该指标反映计算压力：持续偏高可能意味着请求量增大或应用存在热点逻辑；结合 HPA 的 CPU 目标阈值，可用于判断是否需要扩容。
+
+\paragraph{内存使用率}
+
+表示已使用内存占可用或 Limit 内存的比例。内存使用率持续攀升可能由缓存增长、对象未及时释放或 Limit 设置偏低引起，需与 Pod OOMKilled 事件联合分析。
+
+\paragraph{CPU / 内存分配率}
+
+分配率衡量集群中已被 Pod \verb|requests|/\verb|limits| 占用的资源占集群总量的比例，反映\textbf{资源申请}而非\textbf{实际使用}。分配率过高说明集群可调度余量不足，即使当前使用率不高，也可能无法调度新的 Spark Executor 或训练 Pod。
+
+\paragraph{网络上下行速率}
+
+表示工作负载单位时间内接收与发送的数据量，可用于关联接口访问量、Shuffle 通信或分布式训练梯度同步带来的网络负载。
+
+\subsubsection{监控面板验证结果}
+
+\reportfig{figures_A/附加题1/08_集群CPU和内存监控分析图.png}{集群维度 CPU 与内存监控曲线}{fig:bonus1-cluster-metrics}
+
+图 \ref{fig:bonus1-cluster-metrics} 展示了集群 CPU 分配率、使用率及内存相关指标随时间的变化趋势，可用于观察节点资源利用是否平稳、是否存在突发负载。
+
+\reportfig{figures_A/附加题1/09_backend工作负载CPU内存监控图.png}{backend 工作负载 CPU、内存与网络监控}{fig:bonus1-backend-metrics}
+
+图 \ref{fig:bonus1-backend-metrics} 将监控粒度下钻至 \verb|backend| 工作负载，包含 CPU 使用率、物理内存使用率、磁盘 I/O 与网络速率。该结果表明监控系统不仅能观察基础设施，也能支撑对课程设计业务服务的运行态分析，与 T6 HPA 压测场景形成互补。
+
+\subsection{附加题2：CI/CD 流水线}
+
+\subsubsection{流水线设计与 GitHub Actions 配置}
+
+附加题 2 要求为第一部分 Web 应用搭建“代码提交 $\rightarrow$ 自动构建镜像 $\rightarrow$ 推送 SWR”的流水线，并在 CCE 中更新 Deployment 完成部署验证。本项目中，成员 B 在仓库 \verb|.github/workflows/| 目录编写 GitHub Actions workflow，成员 A 在 CloudShell 中使用 workflow 输出的镜像 Tag 更新 Kubernetes Deployment。
+
+流水线文件为 \verb|cicd-app-to-swr-cce.yml|，在 \verb|push| 至 \verb|main| 分支且 \verb|backend/|、\verb|frontend/| 或 workflow 本身发生变更时触发，亦支持 \verb|workflow_dispatch| 手动触发。镜像 Tag 采用 Git 提交 SHA 前 7 位（\verb|${GITHUB_SHA::7}|），便于与代码版本一一对应。SWR 登录凭据通过 GitHub Secrets 注入，避免写入仓库。
+
+\begin{lstlisting}[caption={CI/CD workflow 核心阶段（节选）}, label=lst:cicd-workflow]
+on:
+  push:
+    branches: [main]
+    paths: [backend/**, frontend/**, ...]
+jobs:
+  build-push:
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - run: docker login ...  # SWR_USERNAME / SWR_PASSWORD
+      - run: docker build -t .../backend:${IMAGE_TAG} ./backend
+      - run: docker build -t .../frontend:${IMAGE_TAG} ./frontend
+      - run: docker push .../backend:${IMAGE_TAG}
+      - run: docker push .../frontend:${IMAGE_TAG}
+\end{lstlisting}
+
+所需 GitHub Secrets 为 \verb|SWR_USERNAME| 与 \verb|SWR_PASSWORD|，分别对应华为云 SWR 登录用户名与密码（或临时登录密钥），不得提交至代码库或报告正文。成员 B 在 GitHub 仓库 Settings 中完成 Secrets 配置，图 \ref{fig:bonus2-secrets} 仅展示变量名称与配置状态，不暴露具体凭据值。
+
+\reportfig{figures_B/附加题2/01_CICD_GitHubSecrets_已配置.png}{GitHub Actions SWR 登录 Secrets 已配置}{fig:bonus2-secrets}
+
+\subsubsection{镜像构建与 SWR 推送流程}
+
+流水线执行顺序为：检出代码 $\rightarrow$ 计算 Tag $\rightarrow$ 登录 SWR $\rightarrow$ 分别构建 backend 与 frontend 镜像 $\rightarrow$ 推送至 \verb|swr.cn-north-4.myhuaweicloud.com/cloud-course-a/| 组织。本次通过 \verb|workflow_dispatch| 手动触发 workflow，对应提交 SHA 前 7 位 \verb|b7817d3| 作为镜像 Tag；流水线总耗时约 1 分 9 秒，\verb|build-push| 作业各步骤均显示成功，见图 \ref{fig:bonus2-pipeline-passed}。
+
+\reportfig{figures_A/附加题2/01_acceptance_cicd_pipeline_passed.png}{GitHub Actions CI/CD 流水线运行成功}{fig:bonus2-pipeline-passed}
+
+推送完成后，SWR 控制台中 \verb|backend| 与 \verb|frontend| 仓库均出现 \verb|b7817d3| 版本，图 \ref{fig:bonus2-swr-backend} 与图 \ref{fig:bonus2-swr-frontend} 分别记录了后端与前端的 Tag 更新情况。
+
+\reportfig{figures_A/附加题2/02_acceptance_swr_backend_image_tag_updated.png}{SWR 中 backend 镜像 Tag 已更新为 b7817d3}{fig:bonus2-swr-backend}
+
+\reportfig{figures_A/附加题2/03_acceptance_swr_frontend_image_tag_updated.png}{SWR 中 frontend 镜像 Tag 已更新为 b7817d3}{fig:bonus2-swr-frontend}
+
+由于 GitHub hosted runner 无法直接复用 CloudShell 的非标准私钥文件访问 CCE 内网 API Server，部署验证采用“Actions 自动构建推送 SWR，CloudShell 使用同一 Tag 更新 Deployment”的半自动 CD 流程。CloudShell 中执行的核心命令如下：
+
+\begin{lstlisting}[caption={CloudShell 更新 Deployment 镜像 Tag（本次验收）}, label=lst:cicd-kubectl]
+kubectl set image deployment/backend \
+  backend=swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:b7817d3
+kubectl set image deployment/frontend \
+  frontend=swr.cn-north-4.myhuaweicloud.com/cloud-course-a/frontend:b7817d3
+kubectl rollout status deployment/backend
+kubectl rollout status deployment/frontend
+\end{lstlisting}
+
+\subsubsection{CI、CD 与 GitOps 概念说明}
+
+\textbf{持续集成（CI）}强调每次代码变更后自动执行构建与基础验证，尽早暴露依赖或编译问题。本项目中，backend 与 frontend 镜像的自动构建与推送属于 CI 范畴。
+
+\textbf{持续部署（CD）}强调在 CI 成功后将制品发布至目标环境。本实验在 Actions 推送 SWR 后，由运维侧更新 CCE Deployment 镜像 Tag 并观察滚动更新，构成一次可追踪的 CD 验证流程。
+
+\textbf{GitOps}以 Git 仓库作为系统期望状态的唯一来源，通过控制器（如 Argo CD、Flux）持续对齐集群与仓库声明。当前 workflow 实现了 CI 与半自动 CD；若进一步 GitOps 化，可将 Deployment 中的镜像 Tag 回写 Git 或由 Argo CD 监听仓库变更自动同步，减少 CloudShell 手工 \verb|kubectl set image| 步骤。
+
+\subsubsection{流水线验收与云端部署验证}
+
+镜像 Tag 更新后，\verb|kubectl get deploy backend frontend -o wide| 显示两个 Deployment 均已切换至 \verb|b7817d3| 镜像，见图 \ref{fig:bonus2-deploy-updated}。滚动更新完成后，backend、frontend 与 redis Pod 均处于 Running 状态，其中 backend 与 frontend Pod 年龄约 3 分钟，表明已完成重建，见图 \ref{fig:bonus2-pods-running}。
+
+\reportfig{figures_A/附加题2/04_acceptance_k8s_deployment_image_tag_updated.png}{backend 与 frontend Deployment 镜像 Tag 已更新}{fig:bonus2-deploy-updated}
+
+\reportfig{figures_A/附加题2/05_updated_pods_recreated_running.png}{更新后 backend、frontend 与 redis Pod 均 Running}{fig:bonus2-pods-running}
+
+接口可用性通过在 backend Pod 内访问本地 \verb|127.0.0.1:5000/api/ping| 与集群 Service \verb|backend-svc/api/ping| 进行验证，均返回 \verb|{"redis":"connected","status":"ok"}|，见图 \ref{fig:bonus2-api-ok}。上述证据链将“代码提交—镜像构建—SWR 推送—Deployment 更新—Pod 重建—业务接口可用”完整串联，满足附加题 2 的 CI/CD 验收要求。部署说明与截图清单见 \verb|figures_A/附加题2/C2_CICD说明.md|。
+
+\reportfig{figures_A/附加题2/06_updated_api_access_ok.png}{更新后 /api/ping 接口访问正常}{fig:bonus2-api-ok}
+
+初始方案曾尝试在 GitHub Actions 中直接执行 \verb|kubectl set image|，但因 CloudShell kubeconfig 依赖非标准 PEM 私钥且 API Server 为 CCE 内网地址，hosted runner 无法完成集群访问（详见第五章）。更新后曾在 CloudShell 中直接访问 \verb|backend-svc| ClusterIP 出现连接超时，通过 \verb|kubectl exec| 从 Pod 内访问 Service 可正常返回，说明 Service 与后端链路本身正常，问题与 CloudShell 到 ClusterIP 的网络路径有关。
+
+\subsection{附加题3：C-1 PyTorch 分布式 AI 训练}
+
+\subsubsection{实验目标与模型结构}
+
+附加题 C-1 要求在 Kubernetes 上运行 PyTorch 分布式 MNIST 训练，对比单机与多进程（或多 Pod）场景下的训练耗时，并说明 AllReduce 梯度同步、数据并行与模型并行的区别。本实验由成员 B 实现训练脚本与容器镜像，成员 A 协助在 CCE 上提交 Job 或 PyTorchJob。
+
+训练代码位于 \verb|extra/c1_ddp_mnist.py|，模型 \verb|MnistCnn| 包含两个卷积块（Conv + ReLU + MaxPool）与两层全连接分类器，在 MNIST 手写数字数据集上训练 3 个 epoch。脚本通过环境变量 \verb|WORLD_SIZE|、\verb|RANK|、\verb|LOCAL_RANK| 判断是否启用 DDP，并在 rank 0 进程输出 \verb|training_time_seconds| 供报告对比。
+
+\begin{lstlisting}[language=Python, caption={DDP 初始化与训练计时（节选）}, label=lst:c1-ddp]
+distributed, rank, local_rank, world_size = setup_distributed()
+if distributed:
+    dist.init_process_group(backend="gloo", init_method="env://")
+    model = DDP(model)
+start_time = time.perf_counter()
+# ... training loop ...
+if rank == 0:
+    print(f"training_time_seconds={elapsed:.4f}")
+\end{lstlisting}
+
+容器镜像为 \verb|swr.cn-north-4.myhuaweicloud.com/xinchunli/mnist-ddp:v1|，Kubernetes 资源配置见 \verb|k8s/c1-single-mnist-job.yaml|（单机 Job）与 \verb|k8s/c1-pytorchjob.yaml|（1 Master + 2 Worker 的 PyTorchJob）。
+
+\subsubsection{单机训练与 PyTorchJob 分布式训练}
+
+单机场景使用 \verb|batch/v1 Job| 提交单个 Pod，\verb|WORLD_SIZE| 默认为 1，不初始化进程组，等价于单进程 SGD 训练。分布式场景使用 Kubeflow \verb|PyTorchJob|，配置 1 个 Master 副本与 2 个 Worker 副本，各副本运行相同入口脚本；PyTorch 分布式启动器为各进程注入 \verb|RANK| 与 \verb|WORLD_SIZE|，从而进入 DDP 模式。
+
+\begin{lstlisting}[caption={PyTorchJob 副本配置（节选）}, label=lst:c1-pytorchjob]
+pytorchReplicaSpecs:
+  Master:
+    replicas: 1
+  Worker:
+    replicas: 2
+\end{lstlisting}
+
+对比实验应记录两次运行的 \verb|training_time_seconds|。在理想情况下，数据并行可缩短 wall-clock 时间；实际结果还受 CPU/GPU 资源、进程间通信、数据加载与 Kubernetes 调度开销影响。若 Worker 数增加但耗时下降不明显，需在报告中结合通信占比与 batch 划分方式分析原因。
+
+\subsubsection{AllReduce 梯度同步机制}
+
+在数据并行 DDP 中，每个进程持有完整模型副本，但仅消费训练数据集的一个分片（本实验通过 \verb|DistributedSampler| 实现）。前向与反向传播在本地 batch 上独立计算后，各进程得到不同的局部梯度；DDP 在 \verb|loss.backward()| 过程中通过 \textbf{AllReduce} 操作对所有进程的梯度求和（或平均），使各副本在下一步优化前保持一致。
+
+AllReduce 的通信开销随进程数与模型参数量增长。当模型较大或网络带宽有限时，通信时间可能抵消并行计算收益；当单进程计算时间足够长时，通信可被计算掩盖。本实验 MNIST CNN 参数量相对较小，因此分布式收益可能不如大规模 NLP/CV 模型明显，但仍能体现 Kubernetes 上编排分布式训练任务的完整流程。
+
+\subsubsection{数据并行与模型并行对比}
+
+\begin{table}[H]
+  \centering
+  \caption{数据并行与模型并行对比}
+  \label{tab:c1-parallel-compare}
+  \small
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{p{2.4cm}p{5.2cm}p{5.2cm}}
+    \toprule
+    维度 & 数据并行（Data Parallelism） & 模型并行（Model Parallelism） \\
+    \midrule
+    划分对象 & 将\textbf{训练样本 batch} 划分到多个进程 & 将\textbf{模型结构} 划分到多个设备 \\
+    模型副本 & 每个进程持有完整模型 & 每个进程仅持有部分层或部分参数 \\
+    典型实现 & PyTorch DDP、Horovod & Pipeline Parallel、Tensor Parallel \\
+    通信内容 & 主要为梯度 AllReduce & 层间激活值、中间结果传递 \\
+    适用场景 & 模型可放入单卡，数据量大 & 单卡无法容纳超大模型 \\
+    本实验 & C-1 采用 DDP 数据并行 & 未实现；MNIST CNN 无需模型并行 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+本课程设计 C-1 任务采用\textbf{数据并行}：三个 epoch 内各进程使用不同 MNIST 子集，梯度经 AllReduce 同步后统一更新参数。若未来扩展至超大 Transformer 等模型，单设备无法加载完整参数，才需引入\textbf{模型并行}将不同层或不同张量分片到多设备。理解二者差异有助于在 Kubernetes 上选择合适的 Operator（PyTorchJob、MPIJob 等）与资源配额策略。
+
+\subsubsection{实验小结}
+
+C-1 附加题完成了 MNIST CNN 训练脚本、容器镜像与 Kubernetes Job/PyTorchJob 清单编写，覆盖单机与多 Worker 两种运行形态。报告对比 \verb|training_time_seconds| 时，应同时说明 AllReduce 通信、数据加载与集群调度对耗时的影响；并结合表 \ref{tab:c1-parallel-compare} 阐明数据并行与模型并行的适用边界。该实践与 Spark 数据并行、HPA 弹性伸缩一起，构成了本项目“并行计算 + 云原生编排”的完整知识链条。

@@ -28,6 +28,44 @@
 
 图\ref{fig:a0_operator_image_switch}展示了 Spark Operator Deployment 中镜像地址已经完成切换。该步骤保证控制器 Pod 能够稳定拉取镜像并进入 Running 状态，为后续提交 SparkApplication 提供基础。
 
+\subsubsection{本地环境补充验证截图}
+
+除 CCE 集群内由成员 A 提交的 \verb|figures_A/A-0| 截图外，成员 B 在本地与集群联调过程中亦保留了一组 Spark Operator 与 WordCount 提交截图（\verb|figures_B/A0/|），用于交叉验证环境配置与作业提交流程。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A0/a0-spark-operator-running.png}
+\caption{Spark Operator 控制器 Pod 运行状态（本地归档）}
+\label{fig:a0_b_operator}
+\end{figure}
+
+图\ref{fig:a0_b_operator}显示 Spark Operator 相关 Pod 处于 Running，与图\ref{fig:a0_operator_running} 结论一致。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A0/a0-sparkapplication-yaml.png}
+\caption{SparkApplication YAML 关键参数（本地归档）}
+\label{fig:a0_b_yaml}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A0/a0-wordcount-submit.png}
+\caption{WordCount SparkApplication 提交成功（本地归档）}
+\label{fig:a0_b_submit}
+\end{figure}
+
+图\ref{fig:a0_b_yaml} 与图\ref{fig:a0_b_submit} 分别对应 SparkApplication 参数配置与作业提交阶段，与图\ref{fig:a0_yaml}、图\ref{fig:a0_wordcount_submit} 相互印证。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A0/a0-driver-executor-completed.png}
+\caption{WordCount Driver 与 Executor 完成状态（本地归档）}
+\label{fig:a0_b_completed}
+\end{figure}
+
+图\ref{fig:a0_b_completed} 表明 WordCount 作业中 Driver 与 Executor 均已完成运行，为 A-0 环境可用性提供补充证据。
+
 \subsubsection{SparkApplication YAML参数配置}
 
 为了运行 Spark 数据分析任务，需要编写 SparkApplication 资源文件。该文件定义了 Spark 版本、镜像地址、Driver 与 Executor 资源配置、Python 主程序路径以及重启策略等参数。
@@ -254,6 +292,15 @@ dropna(subset=[核心字段])
 
 图\ref{fig:a1_statistics}展示了 $year$、$rating\_score$、$rating\_count$ 和 $collect\_count$ 等数值字段的统计信息，包括均值、标准差、最小值和最大值。通过统计结果可以看出，评分字段整体分布较为稳定，而评分人数与收藏人数存在较大波动，说明不同电影之间的受关注程度差异明显。
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A1/a12-sections-in-driver-log.png}
+\caption{A-1 数据清洗阶段 Driver 日志分段输出}
+\label{fig:a1_driver_log_sections}
+\end{figure}
+
+图\ref{fig:a1_driver_log_sections} 展示了 Spark Driver 日志中 Schema、缺失值比例、清洗前后行数及统计摘要等分段输出，证明 A-1 清洗流程在集群环境中按顺序完整执行，而非仅停留在本地脚本层面。
+
 
 
 \subsection{A-2：Spark SQL统计分析}
@@ -312,6 +359,15 @@ dropna(subset=[核心字段])
 
 图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。结果表明，不同国家的高分电影具有明显的文化特色和地域特征，窗口函数能够有效完成此类分组排名任务。
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-csv-saved-success.png}
+\caption{Spark SQL 查询结果导出 CSV 成功提示}
+\label{fig:a2_csv_saved}
+\end{figure}
+
+图\ref{fig:a2_csv_saved} 表明部分查询结果已成功导出为 CSV 文件，说明 Spark SQL 分析不仅能在控制台展示，也可落盘为后续报告或二次分析提供数据副本。
+
 \subsubsection{统计结果截图与分析说明汇总}
 
 本实验共完成四类 Spark SQL 分析任务，覆盖了聚合分析、排序分析、时间趋势分析以及窗口函数分析等典型场景。实验结果表明，Spark SQL 能够在保持 SQL 易用性的同时，利用 Spark 的分布式计算能力处理大规模数据分析任务。通过 DataFrame 与 SQL 结合的方式，可以方便地实现复杂统计分析需求，为后续数据挖掘和机器学习任务提供可靠的数据支撑。
@@ -335,6 +391,94 @@ dropna(subset=[核心字段])
 \end{enumerate}
 
 所有测试均使用相同数据集和相同统计逻辑，从而保证实验结果具有可比性。实验结果如表\ref{tab:a3_performance}所示。
+
+\subsubsection{SparkApplication 提交与集群运行过程}
+
+A-3 性能测试在 CCE 集群中通过 SparkApplication 提交 \verb|analysis.py|。每次更换 Executor 数量前，需删除旧 SparkApplication 资源并重新 apply，避免历史作业干扰观测。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-delete-old-sparkapplication.png}
+\caption{删除旧 SparkApplication 资源}
+\label{fig:a3_delete_app}
+\end{figure}
+
+图\ref{fig:a3_delete_app} 显示在提交新一轮性能测试前，已清理旧的 SparkApplication，保证 \verb|executor.instances| 等参数与当前实验设计一致。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-sparkapplication-submitted.png}
+\caption{单 Executor 性能测试 SparkApplication 已提交}
+\label{fig:a3_exec1_submitted}
+\end{figure}
+
+图\ref{fig:a3_exec1_submitted} 表明单 Executor 测试的 SparkApplication 已成功创建并进入调度流程。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-driver-running.png}
+\caption{单 Executor 测试 Driver Pod 运行中}
+\label{fig:a3_exec1_driver_running}
+\end{figure}
+
+图\ref{fig:a3_exec1_driver_running} 显示 Driver Pod 已进入 Running 状态，说明主控进程已启动并准备创建 Executor。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-executor-pending.png}
+\caption{单 Executor 测试 Executor 因资源不足 Pending}
+\label{fig:a3_exec1_executor_pending}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-executor-resource-waiting.png}
+\caption{Executor 等待集群分配资源}
+\label{fig:a3_exec1_executor_waiting}
+\end{figure}
+
+图\ref{fig:a3_exec1_executor_pending} 与图\ref{fig:a3_exec1_executor_waiting} 记录了集群资源紧张时 Executor 长时间 Pending 的现场。该问题通过扩容 Worker 节点、调整内存 request 及清理其他作业释放资源后解决（详见第五章）。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-driver-executor-running-final.png}
+\caption{单 Executor 测试 Driver 与 Executor 同时运行}
+\label{fig:a3_exec1_running_final}
+\end{figure}
+
+图\ref{fig:a3_exec1_running_final} 表明资源满足后，Driver 与 Executor 均已进入 Running，性能测试可以正常进行。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-completed-final.png}
+\caption{单 Executor 测试 SparkApplication 完成状态}
+\label{fig:a3_exec1_app_completed}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec1-performance-result.png}
+\caption{单 Executor 测试性能结果控制台输出}
+\label{fig:a3_exec1_perf_console}
+\end{figure}
+
+图\ref{fig:a3_exec1_app_completed} 与图\ref{fig:a3_exec1_perf_console} 从资源状态与控制台输出两个角度确认单 Executor 轮次已跑通，并为表\ref{tab:a3_performance} 中 PySpark 单 Executor 耗时提供依据。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec2-driver-executors-running.png}
+\caption{双 Executor 测试 Driver 与 Executor 运行中}
+\label{fig:a3_exec2_running}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures_B/A3/a3-exec2-completed-final.png}
+\caption{双 Executor 测试 SparkApplication 完成状态}
+\label{fig:a3_exec2_app_completed}
+\end{figure}
+
+图\ref{fig:a3_exec2_running} 与图\ref{fig:a3_exec2_app_completed} 对应双 Executor 配置下的运行中与完成状态，与图\ref{fig:a3_exec2_driver_completed}、图\ref{fig:a3_exec2_driver_log} 共同构成双 Executor 轮次的完整证据链。
 
 \begin{table}[H]
 \centering

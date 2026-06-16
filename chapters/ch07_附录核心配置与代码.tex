@@ -1,26 +1,424 @@
 \section{附录：核心配置与代码}
-\mbox{}
+
+本附录收录课程设计中的关键 Dockerfile、Compose 配置、Kubernetes YAML 以及 Spark 分析脚本片段，便于对照正文第三、四章的部署与分析过程。为控制篇幅，部分长文件仅摘录与任务验收直接相关的核心段落；完整源文件均保存在项目仓库对应目录中。
+
 \subsection{Docker相关文件}
-\mbox{}
+
 \subsubsection{后端Dockerfile}
-\mbox{}
+
+后端采用多阶段构建：第一阶段安装 Python 依赖至独立目录，第二阶段仅复制依赖包与应用代码，以减小运行镜像体积。依赖搜索路径通过 \verb|PYTHONPATH=/app/packages| 指定。
+
+\begin{lstlisting}[caption={backend/Dockerfile（多阶段构建）}, label=lst:backend-dockerfile]
+# -- Stage 1: install dependencies
+FROM python:3.11-slim AS builder
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    --target /build/packages
+
+# -- Stage 2: runtime image
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /build/packages /app/packages
+COPY . .
+ENV PYTHONPATH=/app/packages
+EXPOSE 5000
+CMD ["python", "app.py"]
+\end{lstlisting}
+
 \subsubsection{前端Dockerfile}
-\mbox{}
+
+前端基于 Nginx Alpine 镜像，将自定义配置文件与静态页面分别复制至 Nginx 默认路径。
+
+\begin{lstlisting}[caption={frontend/Dockerfile}, label=lst:frontend-dockerfile]
+FROM nginx:1.25-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY static/ /usr/share/nginx/html/
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+\end{lstlisting}
+
 \subsubsection{docker-compose.yml}
-\mbox{}
+
+本地联调使用 Docker Compose 同时启动 backend 与 Redis。后端通过环境变量读取 Redis 连接信息，满足 T1 本地验证要求。
+
+\begin{lstlisting}[caption={docker-compose.yml（本地联调）}, label=lst:docker-compose]
+version: "3.9"
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+\end{lstlisting}
+
+\subsubsection{后端应用与依赖配置}
+
+后端 \verb|app.py| 提供 \verb|/api/ping| 健康检查接口，并通过 Redis 客户端验证数据库连通性。依赖文件 \verb|requirements.txt| 固定 Flask、Redis 客户端及自选包 \verb|requests| 的版本号。
+
+\begin{lstlisting}[language=Python, caption={backend/app.py（/api/ping 接口）}, label=lst:backend-app]
+from flask import Flask, jsonify
+import os
+import redis
+from datetime import datetime
+
+app = Flask(__name__)
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+def get_redis_client():
+    return redis.Redis(
+        host=REDIS_HOST, port=REDIS_PORT,
+        password=REDIS_PASSWORD if REDIS_PASSWORD else None,
+        decode_responses=True)
+
+@app.route("/api/ping")
+def ping():
+    try:
+        r = get_redis_client()
+        r.set("last_ping", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        redis_status = "connected"
+    except Exception as e:
+        redis_status = f"error: {str(e)}"
+    return jsonify({"status": "ok", "redis": redis_status})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={backend/requirements.txt}, label=lst:requirements]
+flask==3.0.0
+redis==5.0.1
+requests==2.31.0
+\end{lstlisting}
+
 \subsection{Kubernetes YAML文件}
-\mbox{}
+
 \subsubsection{Deployment与Service配置}
-\mbox{}
+
+后端 Deployment 设置 2 个副本，通过 \verb|envFrom| 注入 ConfigMap、通过 \verb|secretKeyRef| 读取 Redis 密码，并配置存活探针与资源限额。Service 方面，\verb|backend-svc| 为 LoadBalancer 类型并绑定华为云 ELB；\verb|redis-svc| 与 \verb|frontend-svc| 为 ClusterIP 类型，仅在集群内访问。
+
+\begin{lstlisting}[caption={k8s/backend-deployment.yaml（节选）}, label=lst:backend-deploy]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2
+  template:
+    spec:
+      imagePullSecrets:
+        - name: default-secret
+      containers:
+        - name: backend
+          image: swr.cn-north-4.myhuaweicloud.com/cloud-course-a/backend:v1
+          ports:
+            - containerPort: 5000
+          resources:
+            requests: {cpu: "100m", memory: "128Mi"}
+            limits:   {cpu: "500m", memory: "512Mi"}
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+          livenessProbe:
+            httpGet: {path: /api/ping, port: 5000}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+\end{lstlisting}
+
+\begin{lstlisting}[caption={k8s/services.yaml}, label=lst:services]
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  annotations:
+    kubernetes.io/elb.class: union
+spec:
+  type: LoadBalancer
+  selector: {app: backend}
+  ports:
+    - port: 80
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc
+spec:
+  type: ClusterIP
+  selector: {app: redis}
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  type: ClusterIP
+  selector: {app: frontend}
+  ports:
+    - port: 80
+      targetPort: 80
+\end{lstlisting}
+
+Redis Deployment 通过 PVC 将 \verb|/data| 目录挂载至持久化卷；前端 Deployment 通过 ConfigMap Volume 挂载 Nginx 配置文件（详见下文）。
+
+\begin{lstlisting}[caption={k8s/redis-deployment.yaml（PVC 挂载节选）}, label=lst:redis-deploy]
+spec:
+  template:
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-data-pvc
+\end{lstlisting}
+
+\begin{lstlisting}[caption={k8s/frontend-deployment.yaml（ConfigMap Volume 挂载节选）}, label=lst:frontend-deploy]
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: frontend-nginx-config
+\end{lstlisting}
+
 \subsubsection{ConfigMap与Secret配置}
-\mbox{}
+
+\verb|backend-config| 保存 Redis 主机名、端口等非敏感配置；\verb|redis-secret| 保存密码字段；\verb|frontend-nginx-config| 以完整文件形式保存 Nginx 反向代理规则。
+
+\begin{lstlisting}[caption={k8s/backend-config.yaml}, label=lst:backend-config]
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  REDIS_HOST: "redis-svc"
+  REDIS_PORT: "6379"
+  APP_ENV: "production"
+\end{lstlisting}
+
+\begin{lstlisting}[caption={k8s/redis-secret.yaml}, label=lst:redis-secret]
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+type: Opaque
+data:
+  password: ""
+\end{lstlisting}
+
+\begin{lstlisting}[caption={k8s/frontend-nginx-config.yaml（Nginx 配置节选）}, label=lst:nginx-configmap]
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+        location /api/ {
+            proxy_pass http://backend-svc:80;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+\end{lstlisting}
+
 \subsubsection{PVC与HPA配置}
-\mbox{}
+
+Redis 持久化通过 \verb|csi-disk| StorageClass 申请 10Gi 云硬盘。HPA 以 backend Deployment 为伸缩目标，CPU 平均利用率目标为 60\%，副本数范围 1--4。
+
+\begin{lstlisting}[caption={k8s/redis-pvc.yaml}, label=lst:redis-pvc]
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 10Gi
+\end{lstlisting}
+
+\begin{lstlisting}[caption={k8s/backend-hpa.yaml}, label=lst:backend-hpa]
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+\end{lstlisting}
+
 \subsection{Spark作业代码}
-\mbox{}
+
+\subsubsection{SparkApplication模板}
+
+A-0 与 A-3 实验通过 SparkApplication 资源提交 PySpark 作业。实际部署时需将镜像地址、Spark 版本及 Executor 数量替换为 SWR 中的自定义镜像与集群资源参数。
+
+\begin{lstlisting}[caption={spark/sparkapplication.yaml（模板）}, label=lst:sparkapplication]
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: pyspark-analysis
+spec:
+  type: Python
+  mode: cluster
+  image: swr.cn-north-4.myhuaweicloud.com/<YOUR_ORG>/pyspark:3.4
+  mainApplicationFile: local:///opt/spark/work/analysis.py
+  sparkVersion: "3.4.0"
+  driver:
+    cores: 1
+    memory: "1g"
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 2
+    memory: "1g"
+\end{lstlisting}
+
 \subsubsection{wordcount.py}
-\mbox{}
+
+WordCount 示例用于验证 Spark Operator 环境。输入路径支持 OBS \verb|s3a://| 协议，部署时需替换 \verb|<BUCKET>| 占位符。
+
+\begin{lstlisting}[language=Python, caption={spark/wordcount.py}, label=lst:wordcount]
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("WordCount").getOrCreate()
+lines = spark.sparkContext.textFile("s3a://<BUCKET>/sample.txt")
+
+word_counts = (
+    lines.flatMap(lambda line: line.split())
+    .map(lambda word: (word, 1))
+    .reduceByKey(lambda a, b: a + b)
+    .sortBy(lambda x: x[1], ascending=False)
+)
+print("Top 10 words:", word_counts.take(10))
+spark.stop()
+\end{lstlisting}
+
 \subsubsection{analysis.py}
-\mbox{}
+
+\verb|analysis.py| 是 A-1 至 A-3 的统一入口，包含数据清洗、Spark SQL 统计分析与性能对比三部分。以下依次摘录关键逻辑。
+
+\paragraph{数据清洗（A-1）}
+
+对核心分析字段采用 \verb|dropna| 删除缺失行，对文本类辅助字段采用 \verb|fillna| 填充占位值。
+
+\begin{lstlisting}[language=Python, caption={analysis.py 数据清洗核心逻辑}, label=lst:analysis-clean]
+cleaned_df = raw_df.dropna(
+    subset=["movie_id", "title", "year",
+            "rating_score", "rating_count"]
+)
+cleaned_df = cleaned_df.fillna({
+    "original_title": "Unknown",
+    "genres": "Unknown",
+    "countries": "Unknown",
+    "directors": "Unknown",
+    "summary": "No summary",
+})
+\end{lstlisting}
+
+\paragraph{Spark SQL 统计分析（A-2）}
+
+以下摘录窗口函数查询示例，按国家或地区分组统计评分前三的电影。
+
+\begin{lstlisting}[language=Python, caption={analysis.py 窗口函数查询（Query 4 节选）}, label=lst:analysis-sql]
+query = """
+SELECT country, rank_in_country, title, year,
+       rating_score, rating_count
+FROM (
+    SELECT country, title, year, rating_score, rating_count,
+           ROW_NUMBER() OVER (
+               PARTITION BY country
+               ORDER BY rating_score DESC, rating_count DESC
+           ) AS rank_in_country
+    FROM movie_countries
+) ranked
+WHERE rank_in_country <= 3
+ORDER BY country, rank_in_country
+"""
+result_df = spark.sql(query)
+\end{lstlisting}
+
 \subsubsection{性能测试脚本}
-\mbox{}
+
+A-3 性能对比在 \verb|run_performance_comparison| 函数中实现：分别记录 PySpark 与 Pandas 执行同一聚合查询的耗时，并将结果写入 \verb|figures/| 目录下的 CSV 与图表文件。Amdahl 分析由 \verb|write_amdahl_outputs| 读取 \verb|executor.instances=1| 与 \verb|2| 两次运行的 CSV 后计算理论加速比。
+
+\begin{lstlisting}[language=Python, caption={analysis.py 性能对比计时逻辑（节选）}, label=lst:analysis-perf]
+spark_start = time.perf_counter()
+spark_result = spark.sql(query)
+spark_rows = spark_result.collect()
+spark_seconds = time.perf_counter() - spark_start
+
+pandas_start = time.perf_counter()
+pandas_df = pd.read_csv(input_path)
+# ... 与 Spark 等价的 genre 聚合逻辑 ...
+pandas_seconds = time.perf_counter() - pandas_start
+
+speedup = pandas_seconds / spark_seconds
+parallel_fraction = (1 - 1 / speedup) / (1 - 1 / workers)
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={analysis.py Amdahl 汇总输出逻辑（节选）}, label=lst:analysis-amdahl]
+measured_speedup_exec2 = spark_exec1_time / spark_exec2_time
+parallel_fraction = (1 - 1 / measured_speedup_exec2) / (1 - 1 / 2)
+amdahl_exec2 = 1 / ((1 - parallel_fraction) + parallel_fraction / 2)
+# 输出至 figures/a3_amdahl_summary.csv 与 a3_amdahl_speedup.png
+\end{lstlisting}
+
+性能测试输出文件约定如下：
+
+\begin{itemize}
+  \item \verb|figures/a3_performance_exec_1.csv|：单 Executor 运行耗时；
+  \item \verb|figures/a3_performance_exec_2.csv|：双 Executor 运行耗时；
+  \item \verb|figures/a3_amdahl_summary.csv|：实测加速比与 Amdahl 理论加速比汇总；
+  \item \verb|figures/a3_amdahl_speedup.png|：加速比对比图。
+\end{itemize}
+
+运行方式：本地执行 \verb|spark-submit spark/analysis.py douban_movies.csv|；在 Kubernetes 环境中通过 SparkApplication 提交，并将 \verb|executor.instances| 分别设为 1 和 2 各运行一次，以完成 A-3 对比实验。
