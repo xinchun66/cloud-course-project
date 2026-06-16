@@ -1,0 +1,29 @@
+name: Build MNIST DDP Image to SWR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Huawei SWR
+        run: |
+          echo "${{ secrets.HUAWEI_SWR_PASSWORD }}" | docker login \
+            -u "${{ secrets.HUAWEI_SWR_USERNAME }}" \
+            --password-stdin \
+            swr.cn-north-4.myhuaweicloud.com
+
+      - name: Build MNIST DDP image
+        run: |
+          docker build -f extra/Dockerfile.pytorch \
+            -t swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:v1 \
+            extra
+
+      - name: Push MNIST DDP image
+        run: |
+          docker push swr.cn-north-4.myhuaweicloud.com/cloud-course-a/mnist-ddp:v1
