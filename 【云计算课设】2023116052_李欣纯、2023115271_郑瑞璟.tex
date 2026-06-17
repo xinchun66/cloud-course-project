@@ -4,6 +4,8 @@
 \usepackage{geometry}
 \usepackage{graphicx}
 \usepackage{array}
+\usepackage{tabularx}
+\usepackage{seqsplit}
 \usepackage{setspace}
 \usepackage{titlesec}
 \usepackage{hyperref}
@@ -11,12 +13,18 @@
 \usepackage{booktabs}
 \usepackage{caption}
 \usepackage{xcolor}
+\usepackage{xstring}
 \usepackage{listings}
 
 \geometry{left=2.6cm,right=2.6cm,top=2.4cm,bottom=2.4cm}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
 \hypersetup{hidelinks}
+
+% tabularx 通用列：长文自动换行、数值居中
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
 
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{180,180,180}
@@ -47,16 +55,30 @@
 
 \newcommand{\coverline}[2]{%
   \makebox[3.2cm][l]{\zihao{4}#1}%
-  \underline{\makebox[7.8cm][l]{\zihao{4}#2}}%
+  \underline{\makebox[7.8cm][c]{\zihao{4}#2}}%
+}
+\newcommand{\idxpath}[1]{{\ttfamily\seqsplit{#1}}}
+\makeatletter
+\newcommand{\reportfig@use}[2]{% #1=width, #2=path
+  \StrSubstitute{#2}{.png}{_annot.png}[\reportfig@annot]%
+  \IfFileExists{\reportfig@annot}{%
+    \includegraphics[width=#1]{\reportfig@annot}%
+  }{%
+    \includegraphics[width=#1]{#2}%
+  }%
 }
 \newcommand{\reportfig}[4][0.92\textwidth]{%
   \begin{figure}[H]
     \centering
-    \includegraphics[width=#1]{#2}
+    \reportfig@use{#1}{#2}%
     \caption{#3}
     \label{#4}
   \end{figure}
 }
+\newcommand{\annotinclude}[2][0.92\textwidth]{%
+  \reportfig@use{#1}{#2}%
+}
+\makeatother
 
 \begin{document}
 
@@ -69,24 +91,27 @@
   \vspace{1.0cm}
   \includegraphics[width=6.0cm]{assets/swjtu-logo.png}
 
-  \vspace{1.3cm}
-  {\zihao{2}\bfseries 云计算技术\par}
+  \vspace{1.0cm}
+  {\zihao{1}\bfseries 云计算技术\par}
 
-  \vspace{1.4cm}
-  {\zihao{2}\bfseries 课程设计报告\par}
+  \vspace{0.8cm}
+  {\zihao{1}\bfseries 课程设计报告\par}
 
   \vfill
 
   \begin{minipage}{11.2cm}
-    \setstretch{1.85}
-    \coverline{专业年级：}{软件工程专业 2023级}\\
-    \coverline{组员1：}{李欣纯（2023116052）}\\
-    \coverline{组员2：}{郑瑞璟（2023115271）}\\
-    \coverline{指导老师：}{丛荣}\\
+    \setstretch{1.75}
+    \coverline{专业年级：}{软件工程专业 2023级}\\[0.35em]
+    \coverline{组员1：}{李欣纯（2023116052）}\\[0.35em]
+    \coverline{组员2：}{郑瑞璟（2023115271）}\\[0.35em]
+    \coverline{指导老师：}{丛荣}\\[0.35em]
     \coverline{提交日期：}{2026年5月21日}\\
   \end{minipage}
 
-  \vspace*{1.0cm}
+  \vspace{0.9cm}
+  {\zihao{4}2025-2026（2）\par}
+
+  \vspace*{1.2cm}
 \end{titlepage}
 
 \pagenumbering{Roman}

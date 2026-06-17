@@ -1,0 +1,5 @@
+method,workers,time_seconds,measured_speedup,amdahl_theory_speedup
+Pandas,1,0.5031,1.0000,
+PySpark,1,1.1460,1.0000,1.0000
+PySpark,2,1.1605,0.9875,1.0000
+parallel_fraction_f,,,0.0000,

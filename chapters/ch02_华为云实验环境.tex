@@ -13,7 +13,8 @@
   \caption{华为云实验环境资源概览}
   \label{tab:cloud-env-summary}
   \small
-  \begin{tabular}{p{2.2cm}p{3.2cm}p{7.2cm}}
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}p{2.6cm} Y}
     \toprule
     云服务 & 本项目用途 & 关键配置或说明 \\
     \midrule
@@ -22,7 +23,7 @@
     OBS & Spark 数据存储接口 & Spark 脚本支持通过 \texttt{s3a://} 路径读取数据；当前报告中 Spark 章节将结合数据分析脚本展开说明。 \\
     ELB & 公网负载均衡 & 后端 \texttt{backend-svc} 通过共享型公网 ELB 暴露 \texttt{/api/ping} 接口。 \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 \subsubsection{SWR镜像仓库配置}
@@ -187,7 +188,8 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \caption{Kubernetes 集群关键参数}
   \label{tab:k8s-cluster-info}
   \small
-  \begin{tabular}{p{4cm}p{8.5cm}}
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm} Y}
     \toprule
     项目 & 内容 \\
     \midrule
@@ -202,7 +204,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
     容器运行时 & containerd \\
     VPC / 子网 & \texttt{cloud-course-vpc} / \texttt{cloud-course-subnet} \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 \subsubsection{集群版本与节点规格}
@@ -256,7 +258,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \label{fig:t2-nodes-ready}
 \end{figure}
 
-图 \ref{fig:t2-nodes-ready} 使用红框突出显示核心验收截图。截图中可以看到两个 Worker 节点的 \texttt{STATUS} 均为 \texttt{Ready}，\texttt{VERSION} 列为 \texttt{v1.34.6-r0-34.0.23}，节点内网 IP 分别为 \texttt{192.168.0.215} 和 \texttt{192.168.0.237}。这说明集群节点已经成功加入 Kubernetes，并且版本满足任务书要求。
+图 \ref{fig:t2-nodes-ready} 使用红框突出显示核心验收截图。截图中可以看到两个 Worker 节点的 \texttt{STATUS} 均为 \texttt{Ready}，\texttt{VERSION} 列为 \texttt{v1.34.6-r0-34.0.23}，节点内网 IP 分别为 \texttt{192.168.0.215} 和 \texttt{192.168.0.237}。这说明集群节点已经成功加入 Kubernetes，并且版本满足任务书要求。需要说明的是，CCE Worker 节点在 \verb|kubectl get nodes -o wide| 输出中 \texttt{ROLES} 列可能显示为 \verb|<none>|，这是华为云 CCE 托管集群中的常见现象，并不表示节点未就绪；T2 验收以 \texttt{STATUS=Ready} 及 \texttt{VERSION} 列是否满足版本要求为准。
 
 \begin{figure}[H]
   \centering

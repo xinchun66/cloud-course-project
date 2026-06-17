@@ -1,0 +1,94 @@
+[
+  {
+    "source": "figures_B/T1/t1-12-curl-ping-json.png",
+    "annotated": "figures_B/T1/t1-12-curl-ping-json_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-18-frontend-page-student-id.png",
+    "annotated": "figures_B/T1/t1-18-frontend-page-student-id_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-11-compose-ps-running.png",
+    "annotated": "figures_B/T1/t1-11-compose-ps-running_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-10-compose-up-build.png",
+    "annotated": "figures_B/T1/t1-10-compose-up-build_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-13-backend-logs.png",
+    "annotated": "figures_B/T1/t1-13-backend-logs_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-14-docker-images.png",
+    "annotated": "figures_B/T1/t1-14-docker-images_annot.png"
+  },
+  {
+    "source": "figures_B/T1/t1-15-frontend-build-success.png",
+    "annotated": "figures_B/T1/t1-15-frontend-build-success_annot.png"
+  },
+  {
+    "source": "figures_B/附加题2/01_CICD_GitHubSecrets_已配置.png",
+    "annotated": "figures_B/附加题2/01_CICD_GitHubSecrets_已配置_annot.png"
+  },
+  {
+    "source": "figures_B/附加题2/02_CICD_PushBackendImage_日志.png",
+    "annotated": "figures_B/附加题2/02_CICD_PushBackendImage_日志_annot.png"
+  },
+  {
+    "source": "figures_B/附加题2/03_CICD_PushFrontendImage_日志.png",
+    "annotated": "figures_B/附加题2/03_CICD_PushFrontendImage_日志_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/01_acceptance_cicd_pipeline_passed.png",
+    "annotated": "figures_A/附加题2/01_acceptance_cicd_pipeline_passed_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/02_acceptance_swr_backend_image_tag_updated.png",
+    "annotated": "figures_A/附加题2/02_acceptance_swr_backend_image_tag_updated_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/03_acceptance_swr_frontend_image_tag_updated.png",
+    "annotated": "figures_A/附加题2/03_acceptance_swr_frontend_image_tag_updated_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/04_acceptance_k8s_deployment_image_tag_updated.png",
+    "annotated": "figures_A/附加题2/04_acceptance_k8s_deployment_image_tag_updated_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/05_updated_pods_recreated_running.png",
+    "annotated": "figures_A/附加题2/05_updated_pods_recreated_running_annot.png"
+  },
+  {
+    "source": "figures_A/附加题2/06_updated_api_access_ok.png",
+    "annotated": "figures_A/附加题2/06_updated_api_access_ok_annot.png"
+  },
+  {
+    "source": "figures_A/附加题1/04_monitoring_pods_running.png",
+    "annotated": "figures_A/附加题1/04_monitoring_pods_running_annot.png"
+  },
+  {
+    "source": "figures_A/附加题1/08_cluster_cpu_memory_monitoring.png",
+    "annotated": "figures_A/附加题1/08_cluster_cpu_memory_monitoring_annot.png"
+  },
+  {
+    "source": "figures_A/附加题1/09_backend_workload_cpu_memory_monitoring.png",
+    "annotated": "figures_A/附加题1/09_backend_workload_cpu_memory_monitoring_annot.png"
+  },
+  {
+    "source": "figures/c1-single-node-mnist-result.png",
+    "annotated": "figures/c1-single-node-mnist-result_annot.png"
+  },
+  {
+    "source": "figures/c1-distributed-ddp-mnist-result.png",
+    "annotated": "figures/c1-distributed-ddp-mnist-result_annot.png"
+  },
+  {
+    "source": "figures_B/附加题3/01_single_job_pod_running.png",
+    "annotated": "figures_B/附加题3/01_single_job_pod_running_annot.png"
+  },
+  {
+    "source": "figures_B/A2/a2-query4-window-function.png",
+    "annotated": "figures_B/A2/a2-query4-window-function_annot.png"
+  }
+]

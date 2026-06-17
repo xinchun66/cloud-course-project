@@ -4,4 +4,7 @@ WORKDIR /opt/ddp
 
 COPY c1_ddp_mnist.py /opt/ddp/c1_ddp_mnist.py
 
-CMD ["python", "/opt/ddp/c1_ddp_mnist.py"]
+# CCE Pod 内访问外网下载 MNIST 易超时，在镜像构建阶段（有网络的构建机）预置数据集。
+RUN python -c "from torchvision import datasets; datasets.MNIST('/data/mnist', download=True)"
+
+CMD ["python", "/opt/ddp/c1_ddp_mnist.py", "--data-dir=/data/mnist"]

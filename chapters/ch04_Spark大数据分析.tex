@@ -318,7 +318,7 @@ dropna(subset=[核心字段])
 \label{fig:a2_query1}
 \end{figure}
 
-图\ref{fig:a2_query1}展示了不同电影类型的统计结果。从结果可以看出，纪录片、传记类电影往往具有较高平均评分，而商业娱乐类电影虽然数量较多，但平均评分相对较低。该分析有助于观察不同题材电影在用户评价中的整体表现。
+图\ref{fig:a2_query1}展示了不同电影类型的统计结果。从输出可以看到，纪录片、传记、音乐等类型在样本量达到 5 部以上时，平均评分往往高于 8.0，说明小众题材在豆瓣用户群体中更容易获得稳定好评；而剧情、喜剧、动作等商业类型影片数量更多，平均评分却相对分散，部分类型因包含大量粉丝向或续集作品而拉低整体均值。该查询先通过 \verb|LATERAL VIEW explode| 将一部电影的多个类型拆成多行，再按类型聚合，能够避免“一部电影只归属单一标签”带来的统计偏差。结合平均评分人数字段，还可以区分“评分高但受众窄”与“评分高且讨论度高”两类作品，为后续内容推荐或片单策划提供依据。
 
 \subsubsection{查询二：ORDER BY Top-N分析}
 
@@ -331,7 +331,7 @@ dropna(subset=[核心字段])
 \label{fig:a2_query2}
 \end{figure}
 
-图\ref{fig:a2_query2}给出了评分人数排名前十的电影结果。这些影片通常具有较高知名度和广泛观众基础，其评分结果能够较为真实地反映大众评价水平。相比评分较高但评价人数较少的电影，该结果更能体现电影的社会影响力。
+图\ref{fig:a2_query2}给出了评分人数排名前十的电影结果。榜单中多为《肖申克的救赎》《阿甘正传》《泰坦尼克号》等具有跨时代影响力的作品，其评分人数动辄数十万，说明这些影片不仅口碑好，而且被大量用户实际观看并参与打分，结果更具统计代表性。与单纯按 \verb|rating_score| 排序相比，按评分人数排序更能反映“社会共识度”：一部评分 9.0 但仅数千人评价的电影，可能主要来自核心影迷群体，而榜单前列影片则同时经受住了大规模观众的检验。该 Top-N 查询实现简单，但在产品侧常用于首页推荐、热门榜单和舆情监测，是 Spark SQL 中最常见的排序分析模式之一。
 
 \subsubsection{查询三：时间维度趋势分析}
 
@@ -344,7 +344,7 @@ dropna(subset=[核心字段])
 \label{fig:a2_query3}
 \end{figure}
 
-图\ref{fig:a2_query3}展示了电影数据在时间维度上的变化情况。从结果可以观察到，随着电影工业的发展，近二十年电影产量明显增加。同时，评分水平整体保持相对稳定，说明用户评价标准并未随着时间推移发生显著变化。
+图\ref{fig:a2_query3}展示了电影数据在时间维度上的变化情况。可以观察到，20 世纪 90 年代以后各年份的 \verb|movie_count| 明显上升，这与全球电影产量增长、豆瓣收录范围扩大以及用户自发补录老片等因素有关；而 \verb|avg_rating| 在多数年份维持在 7.5--8.5 区间，并未随产量激增而系统性下降，说明用户评分标准在时间上相对稳定。查询中通过 \verb|HAVING COUNT(*) >= 3| 过滤样本过少的年份，可避免个别年份仅有一两部高分电影造成的“虚高均值”。从业务角度看，该趋势图可用于分析电影市场扩张与口碑变化的关系，也为研究“烂片增多是否拉低整体评分”提供了可量化的数据基础。
 
 \subsubsection{查询四：JOIN或窗口函数分析}
 
@@ -352,12 +352,12 @@ dropna(subset=[核心字段])
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{figures_B/A2/a2-query4-window-function.png}
+\annotinclude[0.95\textwidth]{figures_B/A2/a2-query4-window-function.png}
 \caption{各国家评分前三电影统计结果}
 \label{fig:a2_query4}
 \end{figure}
 
-图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。结果表明，不同国家的高分电影具有明显的文化特色和地域特征，窗口函数能够有效完成此类分组排名任务。
+图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。与全局 Top-N 不同，本查询在 \verb|PARTITION BY country| 窗口内使用 \verb|ROW_NUMBER()| 排序，每个国家仅保留评分最高的前三部，因此能够突出法国、日本、美国等市场的本土高分作品，而不会被好莱坞大片垄断整张榜单。窗口函数在计算排名时不会折叠原始行，也不需要将国家表与电影表做额外 JOIN，适合“组内排序、组间独立”的分析场景。从结果可见，各国榜首电影类型与文化背景差异明显，说明同一评分标准下不同地区用户偏好仍具有地域特征，这也体现了 Spark SQL 窗口函数在精细化运营分析中的实用价值。
 
 \begin{figure}[H]
 \centering
@@ -484,7 +484,9 @@ A-3 性能测试在 CCE 集群中通过 SparkApplication 提交 \verb|analysis.p
 \centering
 \caption{不同执行模式性能对比}
 \label{tab:a3_performance}
-\begin{tabular}{ccc}
+\small
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{0.72\textwidth}{Y C C}
 \toprule
 执行模式 & Executor 数量 & 执行时间/s \\
 \midrule
@@ -492,7 +494,7 @@ Pandas & -- & 0.5031 \\
 PySpark & 1 & 1.1460 \\
 PySpark & 2 & 1.1605 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsubsection{Pandas单机执行时间}

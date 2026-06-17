@@ -16,6 +16,7 @@ spec:
               command:
                 - python
                 - /opt/ddp/c1_ddp_mnist.py
+                - --data-dir=/data/mnist
                 - --epochs=3
                 - --batch-size=128
     Worker:
@@ -29,5 +30,6 @@ spec:
               command:
                 - python
                 - /opt/ddp/c1_ddp_mnist.py
+                - --data-dir=/data/mnist
                 - --epochs=3
                 - --batch-size=128

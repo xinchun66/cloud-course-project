@@ -36,14 +36,15 @@
   \caption{小组成员分工概览}
   \label{tab:division-overview}
   \small
-  \begin{tabular}{p{2.0cm}p{3.7cm}p{6.0cm}p{1.4cm}}
+  \renewcommand{\arraystretch}{1.22}
+  \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}p{1.5cm} >{\raggedright\arraybackslash}p{2.6cm} Y >{\centering\arraybackslash}p{1.4cm}}
     \toprule
     成员 & 主要职责 & 具体工作内容 & 工作量 \\
     \midrule
     李欣纯 & 应用开发、数据分析与报告整合 & 负责 Dockerfile 修改、本地联调、镜像构建与推送、Spark 数据清洗、Spark SQL 统计分析、性能对比与 Amdahl 分析，并承担报告结构设计、文字撰写、图表整理和最终排版。 & 约 50\% \\
     郑瑞璟 & 云平台部署、Kubernetes 运维与云端验证 & 负责 CCE 集群创建、kubectl 配置、Kubernetes 应用部署、Redis 持久化、ConfigMap Volume 挂载、HPA 验证、Spark Operator 环境部署材料准备及云端截图整理。 & 约 50\% \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 \subsubsection{任务完成清单}
