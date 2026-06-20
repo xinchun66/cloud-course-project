@@ -15,11 +15,27 @@
 \usepackage{xcolor}
 \usepackage{xstring}
 \usepackage{listings}
+\usepackage{fancyhdr}
 
-\geometry{left=2.6cm,right=2.6cm,top=2.4cm,bottom=2.4cm}
+\geometry{left=2.6cm,right=2.6cm,top=2.7cm,bottom=2.6cm,headheight=15pt}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
 \hypersetup{hidelinks}
+
+\newcommand{\reportheader}{2025-2026(2）《云计算技术》课程设计报告}
+\fancypagestyle{reportstyle}{%
+  \fancyhf{}%
+  \fancyhead[C]{\zihao{-5}\reportheader}%
+  \fancyfoot[C]{\zihao{-5}\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\fancypagestyle{tocstyle}{%
+  \fancyhf{}%
+  \fancyhead[C]{\zihao{-5}\reportheader}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
 
 % tabularx 通用列：长文自动换行、数值居中
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
@@ -83,6 +99,7 @@
 \begin{document}
 
 \begin{titlepage}
+  \thispagestyle{empty}
   \centering
   \vspace*{0.4cm}
 
@@ -114,10 +131,13 @@
   \vspace*{1.2cm}
 \end{titlepage}
 
+\pagestyle{tocstyle}
 \pagenumbering{Roman}
 \tableofcontents
-\newpage
+\thispagestyle{tocstyle}
+\clearpage
 \pagenumbering{arabic}
+\pagestyle{reportstyle}
 
 \input{chapters/ch01_课程设计概述}
 

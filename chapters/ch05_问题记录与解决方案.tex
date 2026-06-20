@@ -12,7 +12,7 @@
 
 \paragraph{镜像组织与标签不一致}
 
-小组分工中，后端与前端镜像由成员 B 构建，CCE 部署由成员 A 在组织 \verb|cloud-course-a| 下执行。若 Deployment 中引用的镜像地址、组织名或 Tag 与 SWR 实际资源不一致，Pod 将陷入 \verb|ImagePullBackOff|。排查时需逐项核对 \verb|swr.cn-north-4.myhuaweicloud.com/<组织>/<镜像>:<Tag| 是否与控制台一致，并统一采用固定版本号（如 \verb|v1|）管理，避免 \verb|latest| 标签漂移。
+小组分工中，后端与前端镜像由李欣纯构建，CCE 部署由郑瑞璟在组织 \verb|cloud-course-a| 下执行。若 Deployment 中引用的镜像地址、组织名或 Tag 与 SWR 实际资源不一致，Pod 将陷入 \verb|ImagePullBackOff|。排查时需逐项核对 \verb|swr.cn-north-4.myhuaweicloud.com/<组织>/<镜像>:<Tag| 是否与控制台一致，并统一采用固定版本号（如 \verb|v1|）管理，避免 \verb|latest| 标签漂移。
 
 \paragraph{PySpark 镜像未打包分析脚本}
 
@@ -118,7 +118,7 @@ WordCount 与 A-3 性能测试均曾将 Driver 内存设为 \verb|256m|。Spark 
 
 \paragraph{跨组织 SWR 镜像拉取权限不足}
 
-A-3 使用的 PySpark 镜像位于成员 B 的 SWR 组织 \verb|xinchunli|，而 Spark 作业默认 ServiceAccount 未绑定对应镜像拉取密钥，Driver 或 Executor 拉取镜像时报权限错误。
+A-3 使用的 PySpark 镜像位于李欣纯的 SWR 组织 \verb|xinchunli|，而 Spark 作业默认 ServiceAccount 未绑定对应镜像拉取密钥，Driver 或 Executor 拉取镜像时报权限错误。
 
 \begin{figure}[H]
   \centering

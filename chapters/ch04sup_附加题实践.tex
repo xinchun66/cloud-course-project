@@ -1,6 +1,6 @@
 \section{附加题实践}
 
-在完成 Spark 大数据分析基础任务之后，本项目进一步完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。三类附加题分别对应可观测性、持续交付与分布式深度学习三个云原生方向，与第一部分的 Kubernetes 部署、第二部分的 Spark 并行计算形成能力延伸。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署与 CI/CD 云端验证主要由成员 A 在 CCE 环境完成并提交截图，成员 B 负责 CI/CD 构建推送、C-1 训练代码与集群实验以及报告撰写。
+在完成 Spark 大数据分析基础任务之后，本项目进一步完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。三类附加题分别对应可观测性、持续交付与分布式深度学习三个云原生方向，与第一部分的 Kubernetes 部署、第二部分的 Spark 并行计算形成能力延伸。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署由郑瑞璟在 CCE 环境完成并提交截图，CI/CD 由李欣纯负责 Actions 构建推送、郑瑞璟负责云端 Deployment 更新验证，C-1 由李欣纯负责训练代码与结果分析、郑瑞璟负责在具备云资源的 CCE 环境中运行 Job 并整理云端日志截图。
 
 \subsection{附加题1：云原生监控系统}
 
@@ -81,7 +81,7 @@ CCE 云原生观测为任务书 Grafana Dashboard 的等价实现。
 
 \subsubsection{流水线设计与 GitHub Actions 配置}
 
-附加题 2 要求为第一部分 Web 应用搭建“代码提交 $\rightarrow$ 自动构建镜像 $\rightarrow$ 推送 SWR”的流水线，并在 CCE 中更新 Deployment 完成部署验证。本项目中，成员 B 在仓库 \verb|.github/workflows/| 目录编写 GitHub Actions workflow，成员 A 在 CloudShell 中使用 workflow 输出的镜像 Tag 更新 Kubernetes Deployment。
+附加题 2 要求为第一部分 Web 应用搭建“代码提交 $\rightarrow$ 自动构建镜像 $\rightarrow$ 推送 SWR”的流水线，并在 CCE 中更新 Deployment 完成部署验证。本项目中，李欣纯在仓库 \verb|.github/workflows/| 目录编写 GitHub Actions workflow，完成镜像构建与推送；郑瑞璟在 CloudShell 中使用 workflow 输出的镜像 Tag 更新 Kubernetes Deployment，并在云端验证 Pod 重建和接口可用性。
 
 流水线文件为 \verb|cicd-app-to-swr-cce.yml|，在 \verb|push| 至 \verb|main| 分支且 \verb|backend/|、\verb|frontend/| 或 workflow 本身发生变更时触发，亦支持 \verb|workflow_dispatch| 手动触发。镜像 Tag 采用 Git 提交 SHA 前 7 位（\verb|${GITHUB_SHA::7}|），便于与代码版本一一对应。SWR 登录凭据通过 GitHub Secrets 注入，避免写入仓库。
 
@@ -102,7 +102,7 @@ jobs:
       - run: docker push .../frontend:${IMAGE_TAG}
 \end{lstlisting}
 
-所需 GitHub Secrets 为 \verb|SWR_USERNAME| 与 \verb|SWR_PASSWORD|，分别对应华为云 SWR 登录用户名与密码（或临时登录密钥），不得提交至代码库或报告正文。成员 B 在 GitHub 仓库 Settings 中完成 Secrets 配置，图 \ref{fig:bonus2-secrets} 仅展示变量名称与配置状态，不暴露具体凭据值。
+所需 GitHub Secrets 为 \verb|SWR_USERNAME| 与 \verb|SWR_PASSWORD|，分别对应华为云 SWR 登录用户名与密码（或临时登录密钥），不得提交至代码库或报告正文。李欣纯在 GitHub 仓库 Settings 中完成 Secrets 配置，图 \ref{fig:bonus2-secrets} 仅展示变量名称与配置状态，不暴露具体凭据值。
 
 \reportfig{figures_B/附加题2/01_CICD_GitHubSecrets_已配置.png}{GitHub Actions SWR 登录 Secrets 已配置}{fig:bonus2-secrets}
 
@@ -163,7 +163,7 @@ kubectl rollout status deployment/frontend
 
 \subsubsection{实验目标与模型结构}
 
-附加题 C-1 要求在 Kubernetes 上运行 PyTorch 分布式 MNIST 训练，对比单机与多进程（或多 Pod）场景下的训练耗时，并说明 AllReduce 梯度同步、数据并行与模型并行的区别。本实验由成员 B 完成训练脚本、容器镜像与 CCE 集群上的 Job 提交；在华为云 \verb|cloud-course-cce| 集群中分别运行单机 Job 与双进程 DDP 任务，并保存训练日志截图作为验收依据。
+附加题 C-1 要求在 Kubernetes 上运行 PyTorch 分布式 MNIST 训练，对比单机与多进程（或多 Pod）场景下的训练耗时，并说明 AllReduce 梯度同步、数据并行与模型并行的区别。本实验由李欣纯完成训练脚本、容器镜像准备与结果分析；由于云服务器和 CCE 集群资源主要在郑瑞璟账号侧，单机 Job 与双进程 DDP 任务由郑瑞璟在华为云 \verb|cloud-course-cce| 集群中提交运行，并保存训练日志截图作为验收依据。
 
 训练代码位于 \verb|extra/c1_ddp_mnist.py|，模型 \verb|MnistCnn| 包含两个卷积块（Conv + ReLU + MaxPool）与两层全连接分类器，在 MNIST 手写数字数据集上进行小 epoch 快速训练。脚本通过环境变量 \verb|WORLD_SIZE|、\verb|RANK|、\verb|LOCAL_RANK| 与 \verb|MASTER_ADDR| 判断是否启用 DDP；rank 0 进程在训练结束后输出 \verb|train_seconds|、\verb|final_loss| 与 \verb|test_accuracy|，便于与单机结果对比。
 
