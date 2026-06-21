@@ -37,7 +37,7 @@ SWR 是本项目中连接本地容器构建与云端 Kubernetes 部署的关键�
   \label{fig:env-swr-images}
 \end{figure}
 
-图 \ref{fig:env-swr-images} 展示了成员 A 的 SWR 组织中已经存在 \texttt{backend} 和 \texttt{frontend} 镜像，且镜像标签为 \texttt{v1}。该截图证明云端部署阶段使用的镜像不是临时占位配置，而是已经推送到华为云镜像仓库中的实际镜像资源。后续 T3 应用部署章节将进一步说明 Deployment 如何引用这些镜像地址，以及私有镜像拉取失败时如何通过 \texttt{imagePullSecrets} 解决鉴权问题。
+图 \ref{fig:env-swr-images} 展示了郑瑞璟的 SWR 组织中已经存在 \texttt{backend} 和 \texttt{frontend} 镜像，且镜像标签为 \texttt{v1}。该截图证明云端部署阶段使用的镜像不是临时占位配置，而是已经推送到华为云镜像仓库中的实际镜像资源。后续 T3 应用部署章节将进一步说明 Deployment 如何引用这些镜像地址，以及私有镜像拉取失败时如何通过 \texttt{imagePullSecrets} 解决鉴权问题。
 
 \subsubsection{CCE集群配置}
 
