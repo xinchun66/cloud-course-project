@@ -20,17 +20,17 @@
 
 前端 Dockerfile 基于 \verb|nginx:1.25-alpine|，将自定义 \verb|nginx.conf| 复制到 \verb|/etc/nginx/conf.d/default.conf|，并将 \verb|static/| 下的静态页面复制到 Nginx 默认网页目录。前端首页 \verb|index.html| 中写入了姓名“李欣纯”和学号“2023116052”，用于课程设计验收时识别提交者身份。该部分满足任务书中“在 Nginx 默认首页中加入本人学号和姓名”的要求。
 
-与后端、Redis 不同，当前 \verb|docker-compose.yml| 仅编排 backend 与 redis 两个服务，前端镜像需单独构建并以独立容器运行。本小组在本地执行 \verb|docker build -t frontend:v1 ./frontend|，将 Nginx 配置与 \verb|static/index.html| 一并打入镜像；构建日志中出现 \verb|naming to docker.io/library/frontend:v1| 即表明静态页面已被复制到镜像内的 Nginx 默认网页目录。
+与后端、Redis 不同，当前 \verb|docker-compose.yml| 仅编排 backend 与 redis 两个服务，前端镜像需单独构建并以独立容器运行。成员 B 在本地执行 \texttt{\seqsplit{docker build -t frontend:v1 ./frontend}}，将 Nginx 配置与 \texttt{\seqsplit{static/index.html}} 一并打入镜像；构建日志中出现 \texttt{\seqsplit{naming to docker.io/library/frontend:v1}} 即表明静态页面已被复制到镜像内的 Nginx 默认网页目录。
 
 \reportfig{figures_B/T1/t1-15-frontend-build-success.png}{本地构建 frontend:v1 镜像成功}{fig:t1-frontend-build}
 
-图 \ref{fig:t1-frontend-build} 记录了前端镜像构建过程。输出中 \verb|COPY static/ /usr/share/nginx/html/| 步骤命中缓存，说明 \verb|index.html| 与静态资源已随镜像分层固化；镜像最终标记为 \verb|frontend:v1|，与后续 SWR 推送及 CCE 中 frontend Deployment 引用的 Tag 保持一致。该步骤从“源码修改”过渡到“可运行、可分发镜像”，是 T1 容器化验收的前置环节。
+图 \ref{fig:t1-frontend-build} 记录了前端镜像构建过程。输出中 \texttt{\seqsplit{COPY static/ /usr/share/nginx/html/}} 步骤命中缓存，说明 \verb|index.html| 与静态资源已随镜像分层固化；镜像最终标记为 \verb|frontend:v1|，与后续 SWR 推送及 CCE 中 frontend Deployment 引用的 Tag 保持一致。该步骤从“源码修改”过渡到“可运行、可分发镜像”，是 T1 容器化验收的前置环节。
 
-随后通过 \verb|docker run -d -p 8080:80 --name frontend-demo frontend:v1| 将前端容器映射至本地 8080 端口，在浏览器访问 \verb|http://localhost:8080| 即可验证 Nginx 是否正确提供默认首页，而无需依赖 Kubernetes 或 ELB。
+随后通过 \texttt{\seqsplit{docker run -d -p 8080:80 --name frontend-demo frontend:v1}} 将前端容器映射至本地 8080 端口，在浏览器访问 \verb|http://localhost:8080| 即可验证 Nginx 是否正确提供默认首页，而无需依赖 Kubernetes 或 ELB。
 
 \reportfig[0.72\textwidth]{figures_B/T1/t1-18-frontend-page-student-id.png}{浏览器访问前端首页显示姓名与学号}{fig:t1-frontend-page-student}
 
-图 \ref{fig:t1-frontend-page-student} 展示了前端容器运行后的实际页面效果：标题为 \verb|Cloud Computing Course Project|，正文明确显示 \verb|Name: 李欣纯| 与 \verb|Student ID: 2023116052|。该截图直接对应任务书“在 Nginx 默认首页中加入本人学号和姓名”的硬性要求，并与 \verb|frontend/static/index.html| 源码内容相互印证，避免仅提交镜像 Tag 或 SWR 列表而无法证明页面个性化已完成。
+图 \ref{fig:t1-frontend-page-student} 展示了前端容器运行后的实际页面效果：标题为 \texttt{\seqsplit{Cloud Computing Course Project}}，正文明确显示 \verb|Name: 李欣纯| 与 \verb|Student ID: 2023116052|。该截图直接对应任务书“在 Nginx 默认首页中加入本人学号和姓名”的硬性要求，并与 \texttt{\seqsplit{frontend/static/index.html}} 源码内容相互印证，避免仅提交镜像 Tag 或 SWR 列表而无法证明页面个性化已完成。
 
 \reportfig{assets/report_figures/t1/t1-01-docker-desktop.png}{Docker Desktop 正常运行界面}{fig:t1-docker-desktop}
 
@@ -154,13 +154,9 @@ Redis Deployment 名称为 \verb|redis|，副本数为 1，镜像为 \verb|redis
 
 图 \ref{fig:t3-pending-problem} 记录了 \verb|backend-svc| 初始外部 IP 处于 \verb|<pending>| 的问题现象。该截图用于说明部署过程中存在真实排错过程，而不是简单套用模板。
 
-\reportfig{assets/report_figures/t3/t3-04-services-elb.png}{Service 列表与 ELB 公网 IP 截图}{fig:t3-services-elb}
+Service 类型、ELB 公网地址与最终接口响应将在图 \ref{fig:t3-acceptance-composite} 中与 Pod 运行状态统一呈现。将三类证据集中对照，可以避免只证明某一资源存在而无法说明端到端链路是否真正可用。
 
-图 \ref{fig:t3-services-elb} 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，并已经获得 ELB 公网 IP。该截图说明公网访问入口已经建立。
-
-为解决 Pending 问题，在华为云控制台手动创建共享型公网 ELB，并将负载均衡器绑定至 Service。图 \ref{fig:t3-elb-create} 与图 \ref{fig:t3-elb-running} 记录了 ELB 创建配置与运行中状态，与第五章 LoadBalancer Pending 故障的解决路径相对应。
-
-\reportfig{figures_A/T3/13_ELB创建配置概要.png}{手动创建共享型公网 ELB 的配置概要}{fig:t3-elb-create}
+为解决 Pending 问题，在华为云控制台手动创建共享型公网 ELB，并将负载均衡器绑定至 Service。ELB 创建配置概要已在第二章图 \ref{fig:env-elb-config} 中展示，本节不再重复插入同一截图；图 \ref{fig:t3-elb-running} 继续记录 ELB 创建完成后的运行状态，并与第五章 LoadBalancer Pending 故障的解决路径相对应。
 
 \reportfig{figures_A/T3/14_ELB负载均衡器运行中.png}{ELB 负载均衡器创建成功并处于运行中}{fig:t3-elb-running}
 
@@ -184,9 +180,31 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
 
 应用部署完成后，通过 \verb|kubectl get pods|、浏览器访问和 curl 命令进行验证。核心验收点包括所有 Pod 处于 Running 状态，以及通过 ELB 公网 IP 访问 \verb|/api/ping| 能够返回正常 JSON 结果。
 
-\reportfig{assets/report_figures/t3/t3-02-pods-running.png}{核心验收：Pod 全部 Running 状态截图}{fig:t3-pods-running}
+为形成完整且可追溯的验收链路，图 \ref{fig:t3-acceptance-composite} 按“工作负载状态、服务暴露关系、业务接口响应”的顺序组合三项核心证据。该组织方式由集群内部状态逐步过渡到公网访问结果，能够同时回答“Pod 是否正常运行”“ELB 是否成功绑定”以及“请求是否真正到达后端并连接 Redis”三个问题。
 
-图 \ref{fig:t3-pods-running} 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中后端有两个副本，符合任务书要求。
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.96\textwidth}
+    \small\textbf{(a) 工作负载状态：后端两个副本、前端与 Redis Pod 均处于 Running}\par\smallskip
+    \includegraphics[width=\textwidth]{assets/report_figures/t3/t3-02-pods-running.png}
+  \end{minipage}
+
+  \vspace{0.5em}
+  \begin{minipage}{0.96\textwidth}
+    \small\textbf{(b) 服务暴露关系：backend-svc 为 LoadBalancer 并已获得 ELB 公网地址}\par\smallskip
+    \includegraphics[width=\textwidth,trim=0 0 0 130,clip]{assets/report_figures/t3/t3-04-services-elb.png}
+  \end{minipage}
+
+  \vspace{0.5em}
+  \begin{minipage}{0.82\textwidth}
+    \small\textbf{(c) 端到端响应：公网访问 /api/ping 返回后端与 Redis 均正常}\par\smallskip
+    \includegraphics[width=\textwidth]{assets/report_figures/t3/t3-06-curl-ping.png}
+  \end{minipage}
+  \caption{T3 应用部署完整验收组合图}
+  \label{fig:t3-acceptance-composite}
+\end{figure}
+
+图 \ref{fig:t3-acceptance-composite}(a) 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中 backend 存在两个副本，满足任务书的副本数要求；图 \ref{fig:t3-acceptance-composite}(b) 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，且已经获得 ELB 公网 IP，而 \verb|redis-svc| 保持 ClusterIP 类型，符合公网入口与内部数据库分离的设计；图 \ref{fig:t3-acceptance-composite}(c) 中 curl 请求返回 \texttt{redis=connected, status=ok}，说明外部请求经过 ELB 和 Service 到达 Flask 后端后，后端还能继续访问 Redis。三项证据共同验证了 T3 从资源部署到业务响应的完整链路。
 
 \reportfig{assets/report_figures/t3/t3-03-deployments.png}{Deployment 副本数与镜像信息截图}{fig:t3-deployments}
 
@@ -195,10 +213,6 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
 \reportfig[0.72\textwidth]{assets/report_figures/t3/t3-05-browser-ping.png}{浏览器访问 api/ping 返回正常截图}{fig:t3-browser-ping}
 
 图 \ref{fig:t3-browser-ping} 显示通过浏览器访问公网入口后，后端接口返回正常，说明 ELB 到后端 Service 的访问路径可用。
-
-\reportfig[0.72\textwidth]{assets/report_figures/t3/t3-06-curl-ping.png}{curl 访问 api/ping 返回正常截图}{fig:t3-curl-ping}
-
-图 \ref{fig:t3-curl-ping} 显示命令行访问 \verb|/api/ping| 返回 \verb|{"redis":"connected","status":"ok"}|。该结果不仅说明后端接口可访问，也说明后端能够连接 Redis。
 
 \reportfig{assets/report_figures/t3/t3-07-backend-logs.png}{后端 Pod 日志收到请求截图}{fig:t3-backend-logs}
 
@@ -369,6 +383,12 @@ HPA 控制器本身不直接采集 Pod 资源使用情况，而是基于 Metrics
 \end{figure}
 
 图 \ref{fig:t6-scale-down} 为 T6 另一核心验收截图。在确认全部后台 \verb|curl| 任务已终止且 CPU 指标降至目标值以下后，\verb|backend-hpa| 将 CURRENT 指标恢复为约 \verb|1%/60%|，backend Pod 数量自然回落为 1。该结果验证了 HPA 缩容链路的完整性，表明弹性伸缩不仅能够在高负载时扩容，也能够在负载消除后回收多余计算资源。
+
+单独的扩容与缩容截图能够证明两个关键状态，但不足以直观说明状态之间的触发关系。为此，图 \ref{fig:t6-hpa-timeline} 将本次实验整理为一条时间线：系统从单副本基线开始，在持续并发请求下由 Metrics Server 采集到 CPU 指标升高，HPA 计算期望副本数并驱动 Deployment 扩容；停止压测后，系统经过指标回落和缩容稳定窗口，最终恢复为单副本。该过程说明 HPA 并非依据单次瞬时指标直接增减 Pod，而是通过周期采集、控制器评估和稳定窗口共同完成闭环调节。
+
+\reportfig[0.95\textwidth]{figures/1.png}{HPA 压测、扩容与缩容全过程时间线}{fig:t6-hpa-timeline}
+
+从图 \ref{fig:t6-hpa-timeline} 可以看出，扩容阶段的目标是尽快增加处理能力，而缩容阶段更强调稳定性。压测开始后，CPU 利用率超过 60\% 目标值，HPA 将后端副本扩展至 4 个；压测停止后，副本数没有立即下降，而是在指标持续回落并经过稳定窗口后缩回 1 个。这种“快速响应高负载、谨慎回收空闲资源”的策略能够兼顾服务可用性与资源成本，也与本次扩缩容截图记录的实际结果一致。
 
 实验结束后，删除并重新应用 \verb|k8s/backend-hpa.yaml|，使集群中的 HPA 配置与仓库模板保持一致，便于后续复现与检查。
 

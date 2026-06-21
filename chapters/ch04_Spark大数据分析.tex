@@ -217,7 +217,7 @@ WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是�
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{figures_B/A1/a1-top5.png}
+\includegraphics[width=0.90\textwidth,trim=0 0 500 0,clip]{figures_B/A1/a1-top5.png}
 \caption{数据集前5行预览}
 \label{fig:a1_top5}
 \end{figure}
@@ -230,7 +230,7 @@ WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是�
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\textwidth]{figures_B/A1/a1-missing-ratio.png}
+\includegraphics[width=0.78\textwidth,trim=0 0 400 0,clip]{figures_B/A1/a1-missing-ratio.png}
 \caption{字段缺失值比例统计结果}
 \label{fig:a1_missing_ratio}
 \end{figure}
@@ -276,7 +276,7 @@ dropna(subset=[核心字段])
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures_B/A1/a1-row-count-comparison.png}
+\includegraphics[width=0.58\textwidth,trim=0 0 390 0,clip]{figures_B/A1/a1-row-count-comparison.png}
 \caption{数据清洗前后记录数对比}
 \label{fig:a1_row_count}
 \end{figure}
@@ -285,7 +285,7 @@ dropna(subset=[核心字段])
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.90\textwidth]{figures_B/A1/a1-statistics-summary.png}
+\includegraphics[width=0.82\textwidth,trim=0 0 125 0,clip]{figures_B/A1/a1-statistics-summary.png}
 \caption{数据清洗后数值字段统计信息}
 \label{fig:a1_statistics}
 \end{figure}
@@ -583,22 +583,11 @@ PySpark & 2 & 1.1605 \\
 \label{fig:a3_exec2_driver_log}
 \end{figure}
 
-图\ref{fig:a3_exec2_driver_log}展示了双 Executor 模式下 Driver 日志中的性能输出。结合图\ref{fig:a3_exec1_driver_log}可以看出，两轮测试都成功输出性能指标，为后续性能对比和 Amdahl 分析提供了依据。
+图\ref{fig:a3_exec2_driver_log}展示了双 Executor 模式下 Driver 日志中的性能输出。结合图\ref{fig:a3_exec1_driver_log}可以看出，两轮测试都成功输出性能指标；以下将依据表\ref{tab:a3_performance} 中的汇总数据，从运行耗时与并行加速比两个维度展开对比分析，并结合 Amdahl 定律解释实测结果与理论预期之间的差异。
 
-\subsubsection{性能对比图绘制}
+\subsubsection{性能对比与 Amdahl 加速比分析}
 
-根据实验结果绘制性能对比图，对比不同执行模式下的运行时间。
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.80\textwidth]{figures_B/A3/a3-performance-comparison.png}
-\caption{Pandas与PySpark性能对比}
-\label{fig:a3_performance_compare}
-\end{figure}
-
-图\ref{fig:a3_performance_compare}表明，在当前数据规模下，Pandas 具有最高执行效率，而 PySpark 单 Executor 和双 Executor 的执行时间相近。这说明分布式计算框架并不一定适用于所有规模的数据分析任务。
-
-\subsubsection{Amdahl定律加速比分析}
+表\ref{tab:a3_performance} 已给出三组测试的原始耗时。为更直观地呈现结论，图\ref{fig:a3_spark_amdahl} 将“三种执行模式运行时间对比”与“实测加速比—Amdahl 理论加速比对照”合并为同一张图，便于在同一视角下比较绝对性能与并行扩展效果。
 
 Amdahl 定律用于描述并行计算的理论加速比，其表达式如下：
 
@@ -606,20 +595,22 @@ Amdahl 定律用于描述并行计算的理论加速比，其表达式如下：
 S(N)=\frac{1}{(1-f)+\frac{f}{N}}
 \]
 
-其中，$f$ 表示可并行部分所占比例，$N$ 表示处理器数量，$S(N)$ 表示理论加速比。
+其中，$f$ 表示可并行部分所占比例，$N$ 表示并行处理器（本实验中为 Executor）数量，$S(N)$ 表示理论加速比。
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.80\textwidth]{figures_B/A3/a3-amdahl-analysis.png}
-\caption{实测加速比与Amdahl理论加速比对比}
-\label{fig:a3_amdahl}
+  \centering
+  \includegraphics[width=0.95\textwidth]{"figures/Spark 性能实测与 Amdahl 理论加速比对比.png"}
+  \caption{Spark 性能实测与 Amdahl 理论加速比对比}
+  \label{fig:a3_spark_amdahl}
 \end{figure}
 
-图\ref{fig:a3_amdahl}展示了实测加速比与 Amdahl 理论加速比之间的对比关系。根据实验结果，双 Executor 相比单 Executor 并未获得实际加速效果，说明当前数据规模下并行计算带来的收益不足以抵消系统额外开销。
+图\ref{fig:a3_spark_amdahl} 左侧柱状图对比了三种执行模式的实际耗时。Pandas 单机仅需 0.50 s，PySpark 单 Executor 为 1.15 s，双 Executor 为 1.16 s。在当前约 6 万条记录的小规模数据集上，Pandas 直接在单机内存中完成类型字段拆分与聚合，无需承担 Driver 启动、Executor 调度及跨节点通信等固定开销，因此耗时最短；两种 PySpark 配置的柱高几乎相同，表明在当前数据规模下增加 Executor 并未缩短总执行时间。
+
+图\ref{fig:a3_spark_amdahl} 右侧以单 Executor PySpark 运行为基准（加速比 1.00），展示了 Executor 数量由 1 增至 2 时的实测加速比与理论加速比。在假设可并行比例 $f=0.90$ 的理想条件下，Amdahl 定律预测 2 个 Executor 的理论加速比约为 1.82；而实测加速比仅为 0.99，不仅未接近线性加速，反而略低于无加速基线。这说明对小数据集而言，Spark 作业中 Driver 初始化、任务划分、Shuffle 通信、序列化以及 Kubernetes Pod 创建等串行或半串行开销占比较高，可并行计算部分尚未充分展开，增加 Executor 带来的理论收益被系统开销抵消。上述图表结论与表\ref{tab:a3_performance} 中的绝对耗时相互印证，也为下一节关于非线性加速原因的讨论提供了量化依据。
 
 \subsubsection{非线性加速原因讨论}
 
-实验结果显示，PySpark 双 Executor 的执行时间略高于单 Executor。造成这一现象的主要原因包括：
+结合图\ref{fig:a3_spark_amdahl} 的对比结果，PySpark 双 Executor 的执行时间不仅未低于单 Executor，反而略增约 0.01 s。造成上述非线性加速现象的主要原因包括：
 
 \begin{enumerate}
 \item 数据规模较小，无法充分利用多个 Executor 的计算能力；
