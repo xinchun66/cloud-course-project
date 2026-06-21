@@ -91,7 +91,7 @@ swr.cn-north-4.myhuaweicloud.com/xinchunli/pyspark:3.5.4-a3
 
 为验证 Spark Operator 环境能够正常运行，首先提交官方推荐的 WordCount 示例程序。该程序统计输入文本中各单词出现次数，并输出统计结果。
 
-提交作业后，Spark Operator 自动创建 Driver Pod，Driver 再根据任务需求创建 Executor Pod。整个过程无需手动管理容器生命周期，体现了 Kubernetes 对分布式计算任务的统一调度能力。
+提交作业后，Spark Operator 会创建 Driver Pod，Driver 再根据任务配置创建 Executor Pod。这个过程不需要手动逐个启动容器，调试时主要查看 SparkApplication、Driver 和 Executor 的状态即可。
 
 \begin{figure}[H]
 \centering
@@ -142,7 +142,7 @@ WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是�
 \label{fig:a0_driver_executor_completed}
 \end{figure}
 
-图\ref{fig:a0_driver_executor_completed}显示 Driver Pod 与 Executor Pod 均成功完成任务，SparkApplication 状态变为 Completed。该结果表明 Spark Operator 环境已经搭建成功，为后续数据分析任务提供了可靠运行平台。
+图\ref{fig:a0_driver_executor_completed}显示 Driver Pod 与 Executor Pod 均完成任务，SparkApplication 状态变为 Completed。至此，Spark Operator 环境可以继续用于后续数据分析任务。
 
 为进一步确认最终状态，还分别保留 Driver Pod、Driver 日志以及 SparkApplication 资源层面的完成结果。
 
@@ -176,7 +176,7 @@ WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是�
 
 \subsection{A-1：数据清洗}
 
-数据清洗是数据分析流程中的关键步骤，其目标是在保证数据完整性的前提下消除缺失值、异常值和格式不一致等问题，提高后续分析结果的准确性。本实验基于豆瓣电影数据集，利用 PySpark DataFrame API 完成数据加载、缺失值统计和数据清洗工作。
+数据清洗会直接影响后续统计结果。本实验基于豆瓣电影数据集，使用 PySpark DataFrame API 完成数据加载、缺失值统计和字段处理，重点处理缺失值、异常值和格式不一致等问题。
 
 \subsubsection{数据集选择与字段说明}
 
@@ -299,7 +299,7 @@ dropna(subset=[核心字段])
 \label{fig:a1_driver_log_sections}
 \end{figure}
 
-图\ref{fig:a1_driver_log_sections} 展示了 Spark Driver 日志中 Schema、缺失值比例、清洗前后行数及统计摘要等分段输出，证明 A-1 清洗流程在集群环境中按顺序完整执行，而非仅停留在本地脚本层面。
+图\ref{fig:a1_driver_log_sections} 展示了 Spark Driver 日志中的 Schema、缺失值比例、清洗前后行数和统计摘要等输出。由于这些内容来自 Driver 日志，因此可以确认 A-1 清洗流程是在集群环境中执行的。
 
 
 
@@ -380,7 +380,7 @@ dropna(subset=[核心字段])
 
 \subsubsection{对比查询选择与实验设计}
 
-实验选取电影类型聚合统计任务作为基准查询。该查询需要对电影类型字段进行拆分、聚合和排序，能够较好体现 Spark SQL 的数据处理流程。
+实验选取电影类型聚合统计任务作为基准查询。该查询需要对电影类型字段进行拆分、聚合和排序，流程较完整，适合作为 Pandas 与 PySpark 的对比对象。
 
 实验共设计三组测试：
 

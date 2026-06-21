@@ -192,7 +192,7 @@ if rank == 0:
 
 \reportfig{figures/c1-single-node-mnist-result.png}{CCE 上单机 MNIST 训练日志（Single-Node）}{fig:c1-single-node}
 
-从图 \ref{fig:c1-single-node} 可见，任务在 CPU 上完成 2 个 epoch 训练：第 1 轮 loss 为 0.3152，第 2 轮降至 0.0809，收敛趋势正常。汇总行 \verb|mode=单机 world_size=1 epochs=2 train_seconds=59.05 final_loss=0.0809 test_accuracy=0.9842| 表明 wall-clock 训练耗时约 \textbf{59.05 秒}，测试集准确率约 \textbf{98.42\%}。日志前半段还记录了 MNIST 四件 gzip 文件的下载与解压过程：主站返回 404 时自动切换至备用源并成功落盘，说明数据准备环节具备容错能力。该结果证明单机 Job 链路（镜像拉取 $\rightarrow$ 数据读取 $\rightarrow$ 前向反向 $\rightarrow$ 测试评估）可以在 CCE 上完整执行。
+从图 \ref{fig:c1-single-node} 可见，任务在 CPU 上完成 2 个 epoch 训练：第 1 轮 loss 为 0.3152，第 2 轮降至 0.0809，收敛趋势正常。汇总行 \verb|mode=单机 world_size=1 epochs=2 train_seconds=59.05 final_loss=0.0809 test_accuracy=0.9842| 表明 wall-clock 训练耗时约 \textbf{59.05 秒}，测试集准确率约 \textbf{98.42\%}。日志前半段还记录了 MNIST 四件 gzip 文件的下载与解压过程：主站返回 404 时自动切换至备用源并成功落盘。单机 Job 的链路（镜像拉取 $\rightarrow$ 数据读取 $\rightarrow$ 前向反向 $\rightarrow$ 测试评估）可以在 CCE 上完整执行。
 
 \subsubsection{分布式 DDP 训练结果}
 
