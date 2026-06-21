@@ -20,7 +20,7 @@
 
 前端 Dockerfile 基于 \verb|nginx:1.25-alpine|，将自定义 \verb|nginx.conf| 复制到 \verb|/etc/nginx/conf.d/default.conf|，并将 \verb|static/| 下的静态页面复制到 Nginx 默认网页目录。前端首页 \verb|index.html| 中写入了姓名“李欣纯”和学号“2023116052”，用于课程设计验收时识别提交者身份。该部分满足任务书中“在 Nginx 默认首页中加入本人学号和姓名”的要求。
 
-与后端、Redis 不同，当前 \verb|docker-compose.yml| 仅编排 backend 与 redis 两个服务，前端镜像需单独构建并以独立容器运行。成员 B 在本地执行 \texttt{\seqsplit{docker build -t frontend:v1 ./frontend}}，将 Nginx 配置与 \texttt{\seqsplit{static/index.html}} 一并打入镜像；构建日志中出现 \texttt{\seqsplit{naming to docker.io/library/frontend:v1}} 即表明静态页面已被复制到镜像内的 Nginx 默认网页目录。
+与后端、Redis 不同，当前 \verb|docker-compose.yml| 仅编排 backend 与 redis 两个服务，前端镜像需单独构建并以独立容器运行。本地执行 \texttt{\seqsplit{docker build -t frontend:v1 ./frontend}} 后，Nginx 配置与 \texttt{\seqsplit{static/index.html}} 会一并打入镜像；构建日志中出现 \texttt{\seqsplit{naming to docker.io/library/frontend:v1}}，说明静态页面已复制到镜像内的 Nginx 默认网页目录。
 
 \reportfig{figures_B/T1/t1-15-frontend-build-success.png}{本地构建 frontend:v1 镜像成功}{fig:t1-frontend-build}
 
@@ -34,7 +34,7 @@
 
 \reportfig{assets/report_figures/t1/t1-01-docker-desktop.png}{Docker Desktop 正常运行界面}{fig:t1-docker-desktop}
 
-图 \ref{fig:t1-docker-desktop} 显示 Docker Desktop 已正常运行。本地容器化实验依赖 Docker Engine 提供镜像构建和容器运行能力，该截图证明本地构建环境可用。
+图 \ref{fig:t1-docker-desktop} 显示 Docker Desktop 已正常运行。本地容器化实验依赖 Docker Engine 完成镜像构建和容器启动，因此先确认这一环境可用。
 
 \subsubsection{Docker Compose本地联调验证}
 
@@ -128,7 +128,7 @@
 
 \reportfig{assets/report_figures/t3/t3-10-yaml-ready.png}{CloudShell 中 T3 YAML 文件准备完成截图}{fig:t3-yaml-ready}
 
-图 \ref{fig:t3-yaml-ready} 显示 CloudShell 中已准备好 T3 所需 YAML 文件。该截图证明部署使用的是可追溯的 Kubernetes 配置文件。
+图 \ref{fig:t3-yaml-ready} 显示 CloudShell 中已准备好 T3 所需 YAML 文件，后续部署都基于这些可追溯的 Kubernetes 配置文件完成。
 
 \reportfig{assets/report_figures/t3/t3-11-yaml-check.png}{T3 关键 YAML 配置检查截图}{fig:t3-yaml-check}
 
@@ -216,7 +216,7 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
 
 \reportfig{assets/report_figures/t3/t3-07-backend-logs.png}{后端 Pod 日志收到请求截图}{fig:t3-backend-logs}
 
-图 \ref{fig:t3-backend-logs} 展示后端 Pod 日志收到请求并返回 200 状态码，进一步证明公网访问请求最终到达后端业务容器。
+图 \ref{fig:t3-backend-logs} 中，后端 Pod 日志记录了请求并返回 200 状态码，说明公网访问最终到达了后端业务容器。
 
 \subsection{任务4：持久化存储}
 
@@ -240,7 +240,7 @@ Redis Deployment 中定义了名为 \verb|redis-data| 的 volume，并通过 \ve
 
 \reportfig{assets/report_figures/t4/t4-02-pod-volume.png}{Redis Pod 挂载 PVC 详情截图}{fig:t4-pod-volume}
 
-图 \ref{fig:t4-pod-volume} 展示 Redis Pod 的挂载详情，可以看到 \verb|/data| 目录与 PVC 的关联关系，证明 Redis 数据目录已经通过 Volume 挂载到持久化卷。
+图 \ref{fig:t4-pod-volume} 展示 Redis Pod 的挂载详情，可以看到 \verb|/data| 目录与 PVC 的关联关系，说明 Redis 数据目录已经通过 Volume 挂载到持久化卷。
 
 \subsubsection{Redis测试数据写入}
 
@@ -292,7 +292,7 @@ frontend Deployment 中定义了 \verb|nginx-config| volume，volume 来源为 \
 
 \reportfig{assets/report_figures/t5/t5-03-deploy-volume-2.png}{前端 Deployment Volume 来源为 ConfigMap 截图}{fig:t5-deploy-volume-2}
 
-图 \ref{fig:t5-deploy-volume-2} 进一步显示 volume 来源为 \verb|frontend-nginx-config|，证明挂载关系并非普通空目录或镜像内置文件。
+图 \ref{fig:t5-deploy-volume-2} 中的 volume 来源为 \verb|frontend-nginx-config|，可以排除普通空目录或镜像内置文件的情况。
 
 \subsubsection{配置修改后的Pod内文件验证}
 
@@ -404,4 +404,4 @@ HPA 控制器本身不直接采集 Pod 资源使用情况，而是基于 Metrics
 
 \subsubsection{扩容延迟、冷却机制与工程意义分析}
 
-综合上述实验过程，HPA 扩缩容行为呈现出“扩容相对积极、缩容相对保守”的特征。扩容延迟主要来源于 Metrics Server 采集周期、HPA 控制器评估间隔、Pod 调度与容器启动时间等环节；缩容则受稳定窗口约束，需等待指标持续低于阈值后才逐步减少副本。对于本课程设计中的 Flask 后端而言，HPA 的工程价值体现在两方面：在访问高峰时自动增加副本以分担请求压力，提升服务可用性；在负载回落后自动回收多余 Pod，降低 CCE 节点的 CPU 占用与按需计费成本。T6 实验结果表明，本项目 backend 服务的 HPA 配置正确、指标链路可用，扩缩容行为符合 Kubernetes 自动伸缩机制的预期，任务验收要求已得到满足。
+综合上述实验过程，HPA 的扩容比较快，缩容则明显更慢。扩容延迟主要来自 Metrics Server 采集周期、HPA 控制器评估间隔、Pod 调度和容器启动时间；缩容还要等待稳定窗口，不能在停止压测后立刻减少副本。对本课程设计中的 Flask 后端来说，HPA 的作用比较直接：高负载时增加副本分担请求，负载回落后再回收多余 Pod，减少 CCE 节点资源占用。T6 的截图和命令输出能够说明 backend 的 HPA 配置、指标链路和扩缩容过程均符合任务要求。

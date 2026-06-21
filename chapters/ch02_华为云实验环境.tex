@@ -37,7 +37,7 @@ SWR 是本项目中连接本地容器构建与云端 Kubernetes 部署的关键�
   \label{fig:env-swr-images}
 \end{figure}
 
-图 \ref{fig:env-swr-images} 展示了郑瑞璟的 SWR 组织中已经存在 \texttt{backend} 和 \texttt{frontend} 镜像，且镜像标签为 \texttt{v1}。该截图证明云端部署阶段使用的镜像不是临时占位配置，而是已经推送到华为云镜像仓库中的实际镜像资源。后续 T3 应用部署章节将进一步说明 Deployment 如何引用这些镜像地址，以及私有镜像拉取失败时如何通过 \texttt{imagePullSecrets} 解决鉴权问题。
+图 \ref{fig:env-swr-images} 中可以看到，郑瑞璟的 SWR 组织下已经有 \texttt{backend} 和 \texttt{frontend} 两个镜像，标签均为 \texttt{v1}。后续 CCE 部署引用的就是这里的镜像地址，而不是临时占位配置；如果私有镜像拉取失败，则需要在 Deployment 中配合 \texttt{imagePullSecrets} 处理鉴权问题。
 
 \subsubsection{CCE集群配置}
 
@@ -77,7 +77,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-vpc-list}
 \end{figure}
 
-图 \ref{fig:t2-vpc-list} 展示了 VPC 列表中 \texttt{cloud-course-vpc} 处于可用状态。该截图进一步证明网络资源创建成功，并且命名与本报告记录一致。
+图 \ref{fig:t2-vpc-list} 中，\texttt{cloud-course-vpc} 已处于可用状态，名称也与本报告记录一致。
 
 \begin{figure}[H]
   \centering
@@ -104,7 +104,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-basic-summary}
 \end{figure}
 
-图 \ref{fig:t2-cce-basic-summary} 展示了 CCE 基础配置概要。该截图用于确认集群名称、类型、版本等基础参数，尤其是 Kubernetes 版本信息，是任务书中版本要求的重要支撑材料。
+图 \ref{fig:t2-cce-basic-summary} 记录了 CCE 基础配置概要，主要用于核对集群名称、类型和 Kubernetes 版本等参数。
 
 \begin{figure}[H]
   \centering
@@ -218,7 +218,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \label{fig:t2-worker-config-1}
 \end{figure}
 
-图 \ref{fig:t2-worker-config-1} 展示了创建 Worker 节点时的基础规格配置。该截图用于证明节点创建不是采用默认未知配置，而是根据课程设计成本与运行需求选择了明确的实例规格。
+图 \ref{fig:t2-worker-config-1} 记录了 Worker 节点的基础规格配置，可以看出节点规格是按课程设计成本和运行需求手动选择的。
 
 \begin{figure}[H]
   \centering
@@ -267,7 +267,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \label{fig:t2-cluster-info}
 \end{figure}
 
-图 \ref{fig:t2-cluster-info} 展示了 \texttt{kubectl cluster-info} 的输出结果。该截图证明 kubectl 已经能够访问 Kubernetes 控制平面，为后续通过 \texttt{kubectl apply} 部署 YAML 资源提供前提条件。
+图 \ref{fig:t2-cluster-info} 给出了 \texttt{kubectl cluster-info} 的输出。能看到控制平面地址后，后续才可以继续通过 \texttt{kubectl apply} 部署 YAML 资源。
 
 \begin{figure}[H]
   \centering
