@@ -1,15 +1,15 @@
 \section{课程设计概述}
 \subsection{设计目标与任务要求}
 
-本课程设计围绕云计算平台搭建与并行编程实战两条主线展开，目标是在真实云平台环境中完成从应用容器化、镜像仓库管理、Kubernetes 集群部署，到分布式数据分析与性能评价的完整实践。与单纯的本地实验不同，本项目要求将课堂中涉及的容器、服务发现、负载均衡、持久化存储、配置分离、弹性伸缩和分布式计算等概念，落实到华为云 CCE、SWR、ELB、OBS 等具体服务之上。因此，本报告不只记录操作过程，也重点说明各组件之间的关系、关键配置的作用以及实验验证的依据。
+本课程设计主要分为云计算平台搭建和并行编程实战两部分。项目在华为云环境中完成应用容器化、镜像推送、Kubernetes 集群部署、Spark 数据分析和性能对比等工作。与只在本地运行脚本不同，本项目需要把容器、Service、LoadBalancer、PVC、ConfigMap、HPA 和 Spark 作业放到真实 CCE 环境中验证，因此报告重点记录配置过程、截图证据和排错依据。
 
 根据任务书要求，课程设计总成绩由云计算平台搭建、并行编程实战和报告质量三部分构成。其中，第一部分要求在华为云 CCE 上部署 Flask 后端 API、Redis 数据库和 Nginx 前端页面，并完成对外暴露、数据持久化、ConfigMap Volume 挂载和 HPA 弹性伸缩验证；第二部分选择方向 A，即 Spark 大数据分析，围绕豆瓣电影数据集完成 Spark Operator 环境部署、数据清洗、Spark SQL 统计分析以及 Pandas 与 PySpark 的性能对比；报告部分则要求结构完整、截图清晰、分析充分，并附上核心代码和配置文件。
 
 \subsubsection{课程设计总体目标}
 
-本项目的总体目标可以概括为“构建一套可运行、可验证、可分析的云原生课程设计系统”。在平台层面，项目以容器化 Web 应用为载体，将后端服务、缓存数据库和前端静态服务分别构建为容器镜像，并通过 Kubernetes Deployment、Service、ConfigMap、Secret、PVC 和 HPA 等资源完成部署与治理。在数据计算层面，项目选择 Spark 大数据分析方向，利用 PySpark 对电影数据进行清洗、聚合统计、趋势分析和性能测试，体现云平台对并行计算任务的支撑能力。
+本项目的目标是让 Web 应用和 Spark 分析任务都能在云端正常运行，并留下可以复验的截图和配置文件。在平台层面，后端服务、Redis 和前端静态页面分别构建为容器镜像，再通过 Kubernetes Deployment、Service、ConfigMap、Secret、PVC 和 HPA 完成部署。在数据计算层面，项目选择 Spark 大数据分析方向，利用 PySpark 对电影数据进行清洗、聚合统计、趋势分析和性能测试。
 
-从能力训练角度看，本课程设计主要覆盖以下目标：第一，掌握 Docker 镜像构建、Docker Compose 本地联调和 SWR 镜像推送流程；第二，掌握 CCE 集群创建、kubectl 连接、Pod 与 Service 状态检查等 Kubernetes 基础操作；第三，理解 ConfigMap、Secret、PVC、LoadBalancer、HPA 等资源在云原生应用中的作用；第四，掌握 Spark DataFrame、Spark SQL 和分布式执行模式的基本使用；第五，能够结合截图、日志、性能数据和理论模型对实验结果进行解释。
+从任务要求看，本课程设计需要完成 Docker 镜像构建、Docker Compose 本地联调、SWR 镜像推送、CCE 集群创建、kubectl 连接、Pod 与 Service 状态检查等操作；同时还需要使用 ConfigMap、Secret、PVC、LoadBalancer、HPA 等资源，并完成 Spark DataFrame、Spark SQL 和性能对比分析。
 
 \subsubsection{第一部分云计算平台搭建要求}
 
@@ -51,7 +51,7 @@
 
 根据任务书评分标准，本报告后续章节将按照任务编号逐项展开。第一部分围绕 T1 至 T6 组织，分别对应应用容器化、CCE 集群搭建、应用部署、持久化存储、ConfigMap Volume 挂载和 HPA 弹性伸缩；第二部分围绕 Spark 方向 A-0 至 A-3 组织，分别对应 Spark 环境部署、数据清洗、SQL 统计分析和性能对比。每一项任务均尽量采用“操作目标—关键配置—验证截图—结果分析”的写法，避免只罗列命令而缺少原理解释。
 
-为了直观展示项目当前已经形成的实验材料，图 \ref{fig:overview-compose} 至图 \ref{fig:overview-api-ping} 选取了本地联调、CCE 节点状态和云端接口访问三类代表性截图。这些截图分别对应从本地容器运行到云端集群部署再到公网服务验证的关键路径，能够体现项目不是停留在静态配置层面，而是完成了实际运行和结果验证。
+图 \ref{fig:overview-compose} 至图 \ref{fig:overview-api-ping} 选取了三类代表性截图：本地联调、CCE 节点状态和云端接口访问。它们分别对应本地容器运行、云端集群就绪和公网接口验证，能够说明项目已经实际运行，而不是只提交配置文件。
 
 \begin{figure}[H]
   \centering
