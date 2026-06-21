@@ -11,7 +11,7 @@
 
 图 \ref{fig:overall-architecture} 给出了本项目的总体架构。在线应用链路以 ELB 和 \verb|backend-svc| 为公网请求入口，请求由 Service 转发至两个 Flask 后端副本，后端再通过集群内部的 \verb|redis-svc| 访问 Redis；Redis 数据目录由 PVC 提供持久化存储。Nginx 前端通过反向代理复用后端 Service，ConfigMap、Secret 与 HPA 分别承担配置注入、敏感信息管理和副本弹性调节。离线分析链路则由 Spark Operator 在同一 CCE 集群中调度 Driver 与 Executor，读取 OBS 或实验数据集并输出统计与性能分析结果。两条链路共享 Kubernetes 计算环境，但在服务入口、状态存储和任务调度方面保持职责分离。
 
-\reportfig[\textwidth]{figures/系统总体架构图.drawio.png}{课程设计总体架构与关键数据流}{fig:overall-architecture}
+\reportfig[\textwidth]{figures/course-architecture.png}{课程设计总体架构与关键数据流}{fig:overall-architecture}
 
 从能力培养角度看，本课程设计旨在形成以下几方面的综合实践能力：第一，能够根据任务书模板修改 Dockerfile 和应用配置，完成本地构建、联调与镜像推送；第二，能够在华为云 CCE 中创建满足版本和节点数量要求的 Kubernetes 集群，并使用 kubectl 进行资源管理与状态核验；第三，能够合理使用 ConfigMap、Secret、PVC、LoadBalancer 和 HPA 等资源解决配置分离、敏感信息管理、数据可靠性、外部访问和弹性伸缩问题；第四，能够在 Kubernetes 环境中运行 Spark 作业，并使用 Spark DataFrame 与 SQL API 完成数据分析任务；第五，能够基于截图、日志、实验数据和理论模型对实验结果进行解释，而不是仅停留在操作记录层面。
 
