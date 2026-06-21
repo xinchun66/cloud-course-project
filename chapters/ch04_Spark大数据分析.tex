@@ -2,7 +2,7 @@
 \mbox{}
 \subsection{A-0：Spark环境部署}
 
-为了在 Kubernetes 环境中运行 Spark 作业，本项目采用 Spark Operator 方式部署 Spark 集群。Spark Operator 是 Kubernetes 环境下用于管理 SparkApplication 资源的控制器，能够自动完成 Driver Pod、Executor Pod 的创建、监控与销毁，从而实现 Spark 作业的声明式管理。相比传统 spark-submit 方式，Spark Operator 更符合云原生架构思想，便于与 Kubernetes 的调度、资源管理和监控体系进行集成。
+为了在 Kubernetes 环境中运行 Spark 作业，本项目采用 Spark Operator 方式部署 Spark 集群。Spark Operator 是 Kubernetes 环境下用于管理 SparkApplication 资源的控制器，能够自动完成 Driver Pod、Executor Pod 的创建、监控与销毁。相比直接在命令行反复执行 spark-submit，这种方式更适合放在 CCE 集群中统一查看资源状态，也方便后续通过 Pod 日志排查问题。
 
 \subsubsection{Spark Operator安装}
 
