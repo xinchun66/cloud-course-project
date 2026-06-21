@@ -13,7 +13,7 @@
 
 \reportfig[\textwidth]{figures/course-architecture.png}{课程设计总体架构与关键数据流}{fig:overall-architecture}
 
-从能力培养角度看，本课程设计旨在形成以下几方面的综合实践能力：第一，能够根据任务书模板修改 Dockerfile 和应用配置，完成本地构建、联调与镜像推送；第二，能够在华为云 CCE 中创建满足版本和节点数量要求的 Kubernetes 集群，并使用 kubectl 进行资源管理与状态核验；第三，能够合理使用 ConfigMap、Secret、PVC、LoadBalancer 和 HPA 等资源解决配置分离、敏感信息管理、数据可靠性、外部访问和弹性伸缩问题；第四，能够在 Kubernetes 环境中运行 Spark 作业，并使用 Spark DataFrame 与 SQL API 完成数据分析任务；第五，能够基于截图、日志、实验数据和理论模型对实验结果进行解释，而不是仅停留在操作记录层面。
+完成本项目需要把几类课堂知识串起来使用：先根据任务书模板修改 Dockerfile 和应用配置，完成本地联调与镜像推送；再在华为云 CCE 中创建 Kubernetes 集群，用 kubectl 检查节点和资源状态；随后使用 ConfigMap、Secret、PVC、LoadBalancer 和 HPA 处理配置、密码、存储、公网访问和弹性伸缩问题。Spark 部分则要求在 Kubernetes 环境中提交作业，并结合 DataFrame、SQL 查询、运行日志和性能数据解释实验结果，而不是只保留命令截图。
 
 \subsubsection{云计算平台搭建任务要求}
 
@@ -86,4 +86,4 @@ T3 要求将任务 1 形成的镜像部署到 CCE 集群。后端 Deployment 需
 
 本项目的代码与实验材料统一保存在课程设计仓库中。仓库根目录包含 `backend`、`frontend`、`k8s`、`spark`、`figures`、`figures\_A` 等目录，分别用于保存后端应用、前端静态页面、Kubernetes 资源文件、Spark 分析脚本和实验截图。后端部分以 Flask 提供 `/api/ping` 接口，并通过 Redis 验证服务间通信；前端部分基于 Nginx 提供静态页面和反向代理配置；`k8s` 目录保存 Deployment、Service、ConfigMap、Secret、PVC、HPA 等 YAML 文件；`spark` 目录保存 WordCount 示例、SparkApplication 模板和豆瓣电影数据分析脚本。
 
-报告截图主要来自 `figures` 和 `figures\_A` 目录。`figures/T1` 保存应用容器化、本地联调和 SWR 镜像推送相关截图；`figures\_A/T2` 至 `figures\_A/T5` 保存 CCE 集群、应用部署、Redis 持久化和 ConfigMap Volume 挂载相关截图。后续章节将根据任务书验收要求插入截图，并在正文中说明截图反映的关键信息，例如 Pod 状态、Service 类型、ELB 公网 IP、PVC Bound 状态、Redis 数据持久化结果以及接口返回值等。通过这种组织方式，报告正文、代码文件和截图证据之间形成一一对应关系，便于检查和答辩说明。
+报告截图主要来自 `figures` 和 `figures\_A` 目录。`figures/T1` 保存应用容器化、本地联调和 SWR 镜像推送相关截图；`figures\_A/T2` 至 `figures\_A/T5` 保存 CCE 集群、应用部署、Redis 持久化和 ConfigMap Volume 挂载相关截图。后续章节会按任务书验收点插入截图，并说明截图中需要关注的信息，例如 Pod 状态、Service 类型、ELB 公网 IP、PVC Bound 状态、Redis 数据持久化结果以及接口返回值等。这样整理后，正文、代码文件和截图材料可以互相对上，答辩时也更容易查找。
