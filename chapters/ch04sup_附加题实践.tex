@@ -1,6 +1,6 @@
 \section{附加题实践}
 
-在完成 Spark 大数据分析基础任务之后，本项目进一步完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。三类附加题分别对应可观测性、持续交付与分布式深度学习三个云原生方向，与第一部分的 Kubernetes 部署、第二部分的 Spark 并行计算形成能力延伸。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署由郑瑞璟在 CCE 环境完成并提交截图，CI/CD 由李欣纯负责 Actions 构建推送、郑瑞璟负责云端 Deployment 更新验证，C-1 由李欣纯负责训练代码与结果分析、郑瑞璟负责在具备云资源的 CCE 环境中运行 Job 并整理云端日志截图。
+在完成 Spark 大数据分析基础任务之后，本项目继续完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。这些内容分别对应监控、持续交付和分布式训练，均需要依赖前面已经搭建好的 Kubernetes 环境。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署由郑瑞璟在 CCE 环境完成并提交截图，CI/CD 由李欣纯负责 Actions 构建推送、郑瑞璟负责云端 Deployment 更新验证，C-1 由李欣纯负责训练代码与结果分析、郑瑞璟负责在具备云资源的 CCE 环境中运行 Job 并整理云端日志截图。
 
 \subsection{附加题1：云原生监控系统}
 
@@ -75,7 +75,7 @@ CCE 云原生观测为任务书 Grafana Dashboard 的等价实现。
 
 \reportfig{figures_A/附加题1/09_backend_workload_cpu_memory_monitoring.png}{backend 工作负载 CPU、内存与网络监控}{fig:bonus1-backend-metrics}
 
-图 \ref{fig:bonus1-backend-metrics} 将监控粒度下钻至 \verb|backend| 工作负载，包含 CPU 使用率、物理内存使用率、磁盘 I/O 与网络速率。该结果表明监控系统不仅能观察基础设施，也能支撑对课程设计业务服务的运行态分析，与 T6 HPA 压测场景形成互补。
+图 \ref{fig:bonus1-backend-metrics} 将监控粒度下钻至 \verb|backend| 工作负载，包含 CPU 使用率、物理内存使用率、磁盘 I/O 与网络速率。该结果说明监控系统既可以观察基础设施资源，也可以用于分析课程设计业务服务的运行状态，与 T6 HPA 压测场景形成对应。
 
 \subsection{附加题2：CI/CD 流水线}
 
@@ -192,7 +192,7 @@ if rank == 0:
 
 \reportfig{figures/c1-single-node-mnist-result.png}{CCE 上单机 MNIST 训练日志（Single-Node）}{fig:c1-single-node}
 
-从图 \ref{fig:c1-single-node} 可见，任务在 CPU 上完成 2 个 epoch 训练：第 1 轮 loss 为 0.3152，第 2 轮降至 0.0809，收敛趋势正常。汇总行 \verb|mode=单机 world_size=1 epochs=2 train_seconds=59.05 final_loss=0.0809 test_accuracy=0.9842| 表明 wall-clock 训练耗时约 \textbf{59.05 秒}，测试集准确率约 \textbf{98.42\%}。日志前半段还记录了 MNIST 四件 gzip 文件的下载与解压过程：主站返回 404 时自动切换至备用源并成功落盘，说明数据准备环节具备容错能力。该结果证明单机 Job 链路（镜像拉取 $\rightarrow$ 数据读取 $\rightarrow$ 前向反向 $\rightarrow$ 测试评估）在 CCE 上可完整跑通。
+从图 \ref{fig:c1-single-node} 可见，任务在 CPU 上完成 2 个 epoch 训练：第 1 轮 loss 为 0.3152，第 2 轮降至 0.0809，收敛趋势正常。汇总行 \verb|mode=单机 world_size=1 epochs=2 train_seconds=59.05 final_loss=0.0809 test_accuracy=0.9842| 表明 wall-clock 训练耗时约 \textbf{59.05 秒}，测试集准确率约 \textbf{98.42\%}。日志前半段还记录了 MNIST 四件 gzip 文件的下载与解压过程：主站返回 404 时自动切换至备用源并成功落盘，说明数据准备环节具备容错能力。该结果证明单机 Job 链路（镜像拉取 $\rightarrow$ 数据读取 $\rightarrow$ 前向反向 $\rightarrow$ 测试评估）可以在 CCE 上完整执行。
 
 \subsubsection{分布式 DDP 训练结果}
 
@@ -262,4 +262,4 @@ AllReduce 的通信开销随进程数与模型参数量增长。当模型较大�
 
 \subsubsection{实验小结}
 
-C-1 附加题完成了 MNIST CNN 训练脚本、容器镜像构建与 CCE 集群上的单机/分布式对比实验。图 \ref{fig:c1-single-node} 与图 \ref{fig:c1-distributed-ddp} 分别给出单机与 DDP 的完整训练日志；表 \ref{tab:c1-timing-compare} 量化了 \verb|train_seconds| 与测试准确率差异。实验表明：在相同 epoch 设置下，双进程 DDP 将 wall-clock 时间从 59.05 秒降至 35.64 秒，加速比约 1.66；AllReduce 梯度同步保证了各 rank loss 曲线一致。结合表 \ref{tab:c1-parallel-compare} 可知，本任务属于典型\textbf{数据并行}场景，无需引入模型并行。该实践与 Spark 数据并行、HPA 弹性伸缩及附加题监控指标中的网络速率观察一起，构成了本项目“并行计算 + 云原生编排 + 可观测性”的完整知识链条。
+C-1 附加题完成了 MNIST CNN 训练脚本、容器镜像构建与 CCE 集群上的单机/分布式对比实验。图 \ref{fig:c1-single-node} 与图 \ref{fig:c1-distributed-ddp} 分别给出单机与 DDP 的完整训练日志；表 \ref{tab:c1-timing-compare} 量化了 \verb|train_seconds| 与测试准确率差异。实验表明：在相同 epoch 设置下，双进程 DDP 将 wall-clock 时间从 59.05 秒降至 35.64 秒，加速比约 1.66；AllReduce 梯度同步保证了各 rank loss 曲线一致。结合表 \ref{tab:c1-parallel-compare} 可知，本任务属于典型\textbf{数据并行}场景，无需引入模型并行。这个结果也说明，在 Kubernetes 上提交训练 Job 时，镜像、数据集、Headless Service 和进程组参数都需要同时配置正确，否则训练任务很容易停在镜像拉取或进程通信阶段。
