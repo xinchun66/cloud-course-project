@@ -1,6 +1,6 @@
 \section{第一部分：云计算平台搭建}
 
-本章对应课程设计任务书第一部分“云计算平台搭建”，总分 50 分。该部分以“Flask 后端 API + Redis 数据库 + Nginx 前端页面”为应用对象，完成从本地容器化联调到华为云 CCE 集群部署的全过程。报告按照任务书 T1 至 T6 的顺序组织：T1 说明应用容器化与 SWR 镜像推送；T2 说明 CCE 集群搭建与节点 Ready 验证；T3 说明 Kubernetes 资源部署与公网接口访问；T4 说明 Redis PVC 持久化验证；T5 说明 Nginx 配置以 ConfigMap Volume 形式挂载；T6 说明 HPA 弹性伸缩的配置、压测验证与扩缩容结果分析。
+课程设计第一部分是云计算平台搭建，分值为 50 分。我们使用“Flask 后端 API + Redis 数据库 + Nginx 前端页面”作为实验应用，先在本地完成容器化联调，再把镜像推送到 SWR，并部署到华为云 CCE 集群中。平台部分主要检查应用容器化、CCE 节点 Ready、Kubernetes 资源部署、Redis 持久化、ConfigMap 挂载和 HPA 扩缩容等结果。
 
 \subsection{任务1：应用容器化}
 
@@ -10,11 +10,11 @@
 
 后端 Dockerfile 保留了任务书要求的多阶段构建结构。第一阶段基于 \verb|python:3.11-slim| 安装依赖，并将依赖包安装到 \verb|/build/packages|；第二阶段仍使用轻量级 Python 运行时镜像，只复制依赖包和应用代码，并通过 \verb|PYTHONPATH=/app/packages| 指定依赖搜索路径。该结构将依赖安装过程与运行时环境分离，能够减少运行镜像中不必要的构建缓存和工具链内容。
 
-本项目后端依赖文件中包含 \verb|flask==3.0.0|、\verb|redis==5.0.1| 和 \verb|requests==2.31.0|。其中 \verb|requests| 是在基础模板之外加入的自选 Python 包，满足任务书中“至少加入 1 个自选 Python 包”的要求。
+后端依赖文件中包含 \verb|flask==3.0.0|、\verb|redis==5.0.1| 和 \verb|requests==2.31.0|。其中 \verb|requests| 是在基础模板之外加入的自选 Python 包，满足任务书中“至少加入 1 个自选 Python 包”的要求。
 
 \subsubsection{后端依赖包修改与说明}
 
-后端服务依赖 Flask 提供 HTTP API，依赖 Redis Python 客户端连接 Redis 服务，并额外加入 requests 包以体现依赖扩展能力。虽然当前核心接口主要用于健康检查和 Redis 连接验证，但依赖文件采用固定版本号写法，能够减少镜像构建时由于上游包版本变化导致的不确定性。后端容器暴露 5000 端口，启动命令为 \verb|python app.py|，与 Kubernetes Deployment 中的 \verb|containerPort: 5000| 保持一致。
+后端服务依赖 Flask 提供 HTTP API，依赖 Redis Python 客户端连接 Redis 服务，并额外加入 requests 包，满足任务书中自选 Python 包的要求。虽然当前接口主要用于健康检查和 Redis 连接验证，但依赖文件采用固定版本号写法，可以减少镜像构建时由上游包版本变化带来的不确定性。后端容器暴露 5000 端口，启动命令为 \verb|python app.py|，与 Kubernetes Deployment 中的 \verb|containerPort: 5000| 保持一致。
 
 \subsubsection{前端首页学号姓名标识}
 
@@ -30,7 +30,7 @@
 
 \reportfig[0.72\textwidth]{figures_B/T1/t1-18-frontend-page-student-id.png}{浏览器访问前端首页显示姓名与学号}{fig:t1-frontend-page-student}
 
-图 \ref{fig:t1-frontend-page-student} 展示了前端容器运行后的实际页面效果：标题为 \texttt{\seqsplit{Cloud Computing Course Project}}，正文明确显示 \verb|Name: 李欣纯| 与 \verb|Student ID: 2023116052|。该截图直接对应任务书“在 Nginx 默认首页中加入本人学号和姓名”的硬性要求，并与 \texttt{\seqsplit{frontend/static/index.html}} 源码内容相互印证，避免仅提交镜像 Tag 或 SWR 列表而无法证明页面个性化已完成。
+图 \ref{fig:t1-frontend-page-student} 展示了前端容器运行后的实际页面效果：标题为 \texttt{\seqsplit{Cloud Computing Course Project}}，正文显示 \verb|Name: 李欣纯| 与 \verb|Student ID: 2023116052|。页面内容来自 \texttt{\seqsplit{frontend/static/index.html}}，说明学号姓名已经打入前端镜像。
 
 \reportfig{assets/report_figures/t1/t1-01-docker-desktop.png}{Docker Desktop 正常运行界面}{fig:t1-docker-desktop}
 
@@ -38,7 +38,7 @@
 
 \subsubsection{Docker Compose本地联调验证}
 
-本地联调使用 \verb|docker compose up -d --build| 同时启动后端与 Redis 服务。Compose 配置中后端通过环境变量 \verb|REDIS_HOST=redis| 读取 Redis 服务名，Redis 使用 \verb|redis:7-alpine| 镜像并暴露 6379 端口。联调重点不是仅验证容器能够启动，而是验证后端容器能够通过 Docker 内置 DNS 按服务名访问 Redis，并且 \verb|/api/ping| 接口在返回 \verb|status: ok| 的同时给出 \verb|redis: connected|，从而证明“Flask $\rightarrow$ Redis”链路在容器网络中畅通。
+本地联调使用 \verb|docker compose up -d --build| 同时启动后端与 Redis 服务。Compose 配置中后端通过环境变量 \verb|REDIS_HOST=redis| 读取 Redis 服务名，Redis 使用 \verb|redis:7-alpine| 镜像并暴露 6379 端口。这里主要检查两件事：容器能正常启动，后端也能通过 Docker 内置 DNS 按服务名访问 Redis。接口 \verb|/api/ping| 返回 \verb|status: ok| 和 \verb|redis: connected| 后，说明“Flask $\rightarrow$ Redis”链路在容器网络中可用。
 
 2026 年 6 月 17 日，在 Docker Desktop 引擎就绪后，本小组按上述流程完整复验一遍。执行 \verb|docker compose up -d --build| 时，后端镜像 \verb|cloud-course-project-backend| 基于多阶段 Dockerfile 完成构建（多数层命中缓存），随后 backend 与 redis 两个容器相继进入 \verb|Started| 状态；终端末尾 \verb|[+] up 3/3| 与两行 \verb|Started| 提示表明 Compose 编排目标已全部达成。
 
@@ -48,7 +48,7 @@
 
 \reportfig{figures_B/T1/t1-11-compose-ps-running.png}{docker compose ps 显示 backend 与 redis 均为 Up}{fig:t1-compose-ps-new}
 
-图 \ref{fig:t1-compose-ps-new} 进一步从运行态角度确认联调环境可用：backend 服务映射 \verb|0.0.0.0:5000->5000|，redis 映射 \verb|6379->6379|，且 STATUS 均为 \verb|Up|。其中 backend 容器创建时间距查询时刻仅数秒，说明是本次 \verb|up --build| 新拉起的实例，而非历史残留进程；这为后续 curl 与日志时间戳提供了可信上下文。
+图 \ref{fig:t1-compose-ps-new} 显示 backend 和 redis 均处于 \verb|Up| 状态，其中 backend 映射到本机 5000 端口，redis 使用 6379 端口。backend 容器创建时间距查询时刻仅数秒，说明这是本次 \verb|up --build| 新拉起的实例。
 
 \reportfig[0.85\textwidth]{figures_B/T1/t1-12-curl-ping-json.png}{curl 访问 /api/ping 返回 JSON 验证截图}{fig:t1-curl-ping-json}
 
@@ -56,7 +56,7 @@
 
 \reportfig{figures_B/T1/t1-13-backend-logs.png}{后端日志记录本次 curl 请求返回 200}{fig:t1-backend-logs-new}
 
-图 \ref{fig:t1-backend-logs-new} 将“客户端收到 JSON”与“服务端确实处理请求”两条证据串联起来。日志中 \verb|[17/Jun/2026 11:03:23] "GET /api/ping HTTP/1.1" 200| 的时间戳与 curl 执行时刻对应，说明响应并非缓存或静态占位；同时 Flask 启动日志显示监听 \verb|0.0.0.0:5000|，与 Compose 端口映射及后续 Kubernetes \verb|containerPort: 5000| 配置相互吻合。答辩时若被问及“接口是否真实打到容器内”，该日志即可作为直接依据。
+图 \ref{fig:t1-backend-logs-new} 是后端日志。日志中可以看到 \verb|GET /api/ping| 返回 200，时间戳也与 curl 访问时刻对应；Flask 启动日志显示监听 \verb|0.0.0.0:5000|，与 Compose 端口映射和后续 Kubernetes \verb|containerPort: 5000| 配置一致。
 
 除本次终端复验外，项目早期亦保存了一组 Compose 联调归档截图（图 \ref{fig:t1-compose-build-up} 至图 \ref{fig:t1-backend-logs}），用于对照不同阶段的本地环境记录。
 
@@ -66,7 +66,7 @@
 
 \reportfig{assets/report_figures/t1/t1-03-compose-running.png}{Docker Compose 服务运行状态截图}{fig:t1-compose-running}
 
-图 \ref{fig:t1-compose-running} 展示了本地 Compose 服务运行状态，后端和 Redis 容器均已启动，为接口访问和后端日志验证提供基础。
+图 \ref{fig:t1-compose-running} 展示了本地 Compose 服务运行状态，后端和 Redis 容器均已启动。
 
 \reportfig[0.72\textwidth]{assets/report_figures/t1/t1-04-backend-return.png}{本地访问后端接口返回结果截图}{fig:t1-backend-return}
 
@@ -74,11 +74,11 @@
 
 \reportfig[0.72\textwidth]{assets/report_figures/t1/t1-05-status-ok.png}{接口返回 status ok 验证截图}{fig:t1-status-ok}
 
-图 \ref{fig:t1-status-ok} 进一步显示接口返回中包含正常状态信息，说明后端健康检查接口可用，并为后续 CCE 中通过 ELB 访问 \verb|/api/ping| 提供对照。
+图 \ref{fig:t1-status-ok} 显示接口返回中包含正常状态信息，后端健康检查接口可用。
 
 \reportfig{assets/report_figures/t1/t1-06-backend-logs.png}{后端日志显示收到请求截图}{fig:t1-backend-logs}
 
-图 \ref{fig:t1-backend-logs} 展示后端日志中收到请求的记录。该截图是本地联调的重要证据，说明浏览器或命令行访问确实到达了后端容器，而不仅是静态页面或缓存结果。
+图 \ref{fig:t1-backend-logs} 展示后端日志中收到请求的记录，可以看到访问已经到达后端容器。
 
 \subsubsection{SWR镜像推送与镜像Tag验证}
 
@@ -104,11 +104,11 @@
 
 \subsection{任务2：CCE集群搭建}
 
-任务 2 要求在华为云 CCE 控制台创建 Kubernetes 集群，并配置 kubectl，使至少两个 Worker 节点处于 Ready 状态。本项目已在第二章对 CCE、VPC、子网、Worker 节点、插件和 kubectl 连接过程进行了完整说明，并插入了 T2 的全部环境截图。本节从第一部分评分角度简要归纳验收结论。
+任务 2 要求在华为云 CCE 控制台创建 Kubernetes 集群，并配置 kubectl，使至少两个 Worker 节点处于 Ready 状态。CCE、VPC、子网、Worker 节点、插件和 kubectl 连接过程已在第二章记录，这里只汇总 T2 的验收结果。
 
 \subsubsection{CCE集群创建过程}
 
-本项目在华为云华北-北京四区域创建 CCE Standard 集群 \verb|cloud-course-cce|，并配套创建 VPC \verb|cloud-course-vpc| 和子网 \verb|cloud-course-subnet|。集群创建时保留 CCE 容器网络、CoreDNS 和 Everest 存储等默认必要插件，为后续服务发现、Pod 网络通信和 PVC 挂载提供基础能力。
+我们在华为云华北-北京四区域创建 CCE Standard 集群 \verb|cloud-course-cce|，并配套创建 VPC \verb|cloud-course-vpc| 和子网 \verb|cloud-course-subnet|。集群创建时保留 CCE 容器网络、CoreDNS 和 Everest 存储等默认必要插件，为后续服务发现、Pod 网络通信和 PVC 挂载提供基础能力。
 
 \subsubsection{Worker节点Ready状态验证}
 
@@ -120,7 +120,7 @@
 
 \subsection{任务3：应用部署}
 
-任务 3 的目标是将任务 1 中完成的容器镜像部署到 CCE 集群中，并通过 Kubernetes 资源完成服务编排、配置注入、敏感信息管理和公网暴露。本项目部署的主要资源包括 \verb|backend| Deployment、\verb|redis| Deployment、\verb|frontend| Deployment、\verb|backend-svc| LoadBalancer Service、\verb|redis-svc| ClusterIP Service、\verb|backend-config| ConfigMap 和 \verb|redis-secret| Secret。
+任务 3 的目标是将任务 1 中完成的容器镜像部署到 CCE 集群中，并通过 Kubernetes 资源完成服务编排、配置注入、敏感信息管理和公网暴露。我们部署的主要资源包括 \verb|backend| Deployment、\verb|redis| Deployment、\verb|frontend| Deployment、\verb|backend-svc| LoadBalancer Service、\verb|redis-svc| ClusterIP Service、\verb|backend-config| ConfigMap 和 \verb|redis-secret| Secret。
 
 \reportfig{assets/report_figures/t3/t3-09-before-state.png}{T3 部署前集群资源状态截图}{fig:t3-before-state}
 
@@ -132,7 +132,7 @@
 
 \reportfig{assets/report_figures/t3/t3-11-yaml-check.png}{T3 关键 YAML 配置检查截图}{fig:t3-yaml-check}
 
-图 \ref{fig:t3-yaml-check} 展示了 T3 关键 YAML 配置检查结果，包括副本数、Service 类型、ELB 注解和 Redis 配置等内容，能够体现部署前对配置正确性的核对。
+图 \ref{fig:t3-yaml-check} 展示了 T3 关键 YAML 配置检查结果，包括副本数、Service 类型、ELB 注解和 Redis 配置等内容。
 
 \reportfig{assets/report_figures/t3/t3-01-yaml-apply.png}{应用 Kubernetes YAML 资源成功截图}{fig:t3-yaml-apply}
 
@@ -148,15 +148,15 @@ Redis Deployment 名称为 \verb|redis|，副本数为 1，镜像为 \verb|redis
 
 \subsubsection{后端LoadBalancer Service配置}
 
-后端 Service 名称为 \verb|backend-svc|，类型为 \verb|LoadBalancer|，对外暴露 80 端口，并转发到后端容器的 5000 端口。由于华为云 CCE 中 LoadBalancer Service 需要与 ELB 资源绑定，本项目在遇到 \verb|EXTERNAL-IP| 长时间 \verb|<pending>| 后，创建共享型公网 ELB 并通过 Service 注解绑定，从而获得公网 IP。
+后端 Service 名称为 \verb|backend-svc|，类型为 \verb|LoadBalancer|，对外暴露 80 端口，并转发到后端容器的 5000 端口。由于华为云 CCE 中 LoadBalancer Service 需要与 ELB 资源绑定，我们在遇到 \verb|EXTERNAL-IP| 长时间 \verb|<pending>| 后，创建共享型公网 ELB 并通过 Service 注解绑定，从而获得公网 IP。
 
 \reportfig{assets/report_figures/t3/t3-12-pending-problem.png}{backend-svc 外部 IP 持续 Pending 问题截图}{fig:t3-pending-problem}
 
-图 \ref{fig:t3-pending-problem} 记录了 \verb|backend-svc| 初始外部 IP 处于 \verb|<pending>| 的问题现象。该截图用于说明部署过程中存在真实排错过程，而不是简单套用模板。
+图 \ref{fig:t3-pending-problem} 记录了 \verb|backend-svc| 初始外部 IP 处于 \verb|<pending>| 的问题现象。这个问题后来通过手动创建并绑定 ELB 解决。
 
 Service 类型、ELB 公网地址与最终接口响应将在图 \ref{fig:t3-acceptance-composite} 中与 Pod 运行状态统一呈现。将三类证据集中对照，可以避免只证明某一资源存在而无法说明端到端链路是否真正可用。
 
-为解决 Pending 问题，在华为云控制台手动创建共享型公网 ELB，并将负载均衡器绑定至 Service。ELB 创建配置概要已在第二章图 \ref{fig:env-elb-config} 中展示，本节不再重复插入同一截图；图 \ref{fig:t3-elb-running} 继续记录 ELB 创建完成后的运行状态，并与第五章 LoadBalancer Pending 故障的解决路径相对应。
+为解决 Pending 问题，我们在华为云控制台手动创建共享型公网 ELB，并将负载均衡器绑定至 Service。ELB 创建配置概要已在第二章图 \ref{fig:env-elb-config} 中展示；图 \ref{fig:t3-elb-running} 记录了 ELB 创建完成后的运行状态。
 
 \reportfig{figures_A/T3/14_ELB负载均衡器运行中.png}{ELB 负载均衡器创建成功并处于运行中}{fig:t3-elb-running}
 
@@ -166,11 +166,11 @@ Service 类型、ELB 公网地址与最终接口响应将在图 \ref{fig:t3-acce
 
 \subsubsection{Redis ClusterIP Service配置}
 
-Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口为 6379。该设计符合最小暴露原则：Redis 只需要被后端 Pod 访问，不需要直接暴露到公网。后端通过 ConfigMap 中的 \verb|REDIS_HOST=redis-svc| 和 \verb|REDIS_PORT=6379| 访问 Redis 服务，体现 Kubernetes Service 名称解析和内部服务发现机制。
+Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口为 6379。Redis 只需要被后端 Pod 访问，不需要直接暴露到公网。后端通过 ConfigMap 中的 \verb|REDIS_HOST=redis-svc| 和 \verb|REDIS_PORT=6379| 访问 Redis 服务，这里用到的是 Kubernetes Service 名称解析和内部服务发现。
 
 \subsubsection{ConfigMap与Secret配置}
 
-本项目使用 \verb|backend-config| 保存非敏感配置，包括 Redis 主机名、端口和应用运行环境；使用 \verb|redis-secret| 保存敏感密码字段。ConfigMap 与 Secret 分别承担非敏感配置和敏感配置管理职责，能够避免将环境相关配置写死在镜像中，也符合云原生应用“配置外置化”的实践原则。
+我们使用 \verb|backend-config| 保存非敏感配置，包括 Redis 主机名、端口和应用运行环境；使用 \verb|redis-secret| 保存敏感密码字段。ConfigMap 与 Secret 分别承担非敏感配置和敏感配置管理职责，能够避免将环境相关配置写死在镜像中，也符合云原生应用“配置外置化”的实践原则。
 
 \reportfig{assets/report_figures/t3/t3-08-config-secret.png}{ConfigMap 与 Secret 资源存在截图}{fig:t3-config-secret}
 
@@ -180,7 +180,7 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
 
 应用部署完成后，通过 \verb|kubectl get pods|、浏览器访问和 curl 命令进行验证。核心验收点包括所有 Pod 处于 Running 状态，以及通过 ELB 公网 IP 访问 \verb|/api/ping| 能够返回正常 JSON 结果。
 
-为形成完整且可追溯的验收链路，图 \ref{fig:t3-acceptance-composite} 按“工作负载状态、服务暴露关系、业务接口响应”的顺序组合三项核心证据。该组织方式由集群内部状态逐步过渡到公网访问结果，能够同时回答“Pod 是否正常运行”“ELB 是否成功绑定”以及“请求是否真正到达后端并连接 Redis”三个问题。
+图 \ref{fig:t3-acceptance-composite} 放在一起展示了工作负载状态、服务暴露关系和业务接口响应。可以看到 Pod 已经 Running，Service 绑定了公网入口，\verb|/api/ping| 也返回了 Redis 连接正常的结果。
 
 \begin{figure}[H]
   \centering
@@ -204,7 +204,7 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
   \label{fig:t3-acceptance-composite}
 \end{figure}
 
-图 \ref{fig:t3-acceptance-composite}(a) 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中 backend 存在两个副本，满足任务书的副本数要求；图 \ref{fig:t3-acceptance-composite}(b) 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，且已经获得 ELB 公网 IP，而 \verb|redis-svc| 保持 ClusterIP 类型，符合公网入口与内部数据库分离的设计；图 \ref{fig:t3-acceptance-composite}(c) 中 curl 请求返回 \texttt{redis=connected, status=ok}，说明外部请求经过 ELB 和 Service 到达 Flask 后端后，后端还能继续访问 Redis。三项证据共同验证了 T3 从资源部署到业务响应的完整链路。
+图 \ref{fig:t3-acceptance-composite}(a) 显示 backend、frontend 和 redis 相关 Pod 均处于 Running 状态，其中 backend 有两个副本，满足任务书的副本数要求；图 \ref{fig:t3-acceptance-composite}(b) 显示 \verb|backend-svc| 为 \verb|LoadBalancer| 类型，且已经获得 ELB 公网 IP，\verb|redis-svc| 保持 ClusterIP 类型；图 \ref{fig:t3-acceptance-composite}(c) 中 curl 请求返回 \texttt{redis=connected, status=ok}，说明外部请求经过 ELB 和 Service 到达 Flask 后端后，后端还能继续访问 Redis。
 
 \reportfig{assets/report_figures/t3/t3-03-deployments.png}{Deployment 副本数与镜像信息截图}{fig:t3-deployments}
 
@@ -220,7 +220,7 @@ Redis Service 名称为 \verb|redis-svc|，类型为 \verb|ClusterIP|，端口�
 
 \subsection{任务4：持久化存储}
 
-任务 4 要求为 Redis 配置 PVC，并验证 Redis Pod 删除重建后数据不丢失。本项目创建 \verb|redis-data-pvc|，使用华为云 \verb|csi-disk| StorageClass 申请 10Gi 云硬盘，并在 Redis Deployment 中将 PVC 挂载到容器内 \verb|/data| 目录。随后通过写入 \verb|testkey=hello|、删除 Redis Pod、等待新 Pod 重建、再次查询 \verb|testkey| 的方式验证持久化效果。
+任务 4 要求为 Redis 配置 PVC，并验证 Redis Pod 删除重建后数据不丢失。我们创建 \verb|redis-data-pvc|，使用华为云 \verb|csi-disk| StorageClass 申请 10Gi 云硬盘，并在 Redis Deployment 中将 PVC 挂载到容器内 \verb|/data| 目录。随后通过写入 \verb|testkey=hello|、删除 Redis Pod、等待新 Pod 重建、再次查询 \verb|testkey| 的方式验证持久化效果。
 
 \reportfig{assets/report_figures/t4/t4-00-apply.png}{Redis PVC 与 Deployment 创建成功截图}{fig:t4-apply}
 
@@ -272,11 +272,11 @@ Redis Deployment 中定义了名为 \verb|redis-data| 的 volume，并通过 \ve
 
 \subsection{任务5：ConfigMap Volume挂载}
 
-任务 5 要求将 Nginx 反向代理配置以 ConfigMap Volume 的方式挂载到前端 Pod，而不是通过环境变量传递。该任务的核心是证明配置文件来自 ConfigMap，并且修改 ConfigMap 后能够在 Pod 内文件系统中验证更新结果。本项目使用 \verb|frontend-nginx-config| ConfigMap 保存 Nginx \verb|default.conf|，并在 frontend Deployment 中将其挂载到 \verb|/etc/nginx/conf.d/default.conf|。
+任务 5 要求将 Nginx 反向代理配置以 ConfigMap Volume 的方式挂载到前端 Pod。我们使用 \verb|frontend-nginx-config| ConfigMap 保存 Nginx \verb|default.conf|，并在 frontend Deployment 中将其挂载到 \verb|/etc/nginx/conf.d/default.conf|。修改 ConfigMap 后，再进入 Pod 查看文件内容是否更新。
 
 \subsubsection{Nginx配置ConfigMap创建}
 
-Nginx 配置文件包含静态页面根目录、默认首页以及 \verb|/api/| 反向代理规则。通过 ConfigMap 保存 Nginx 配置，可以在不重建前端镜像的情况下调整代理目标或新增配置注释，体现配置与镜像分离。
+Nginx 配置文件包含静态页面根目录、默认首页以及 \verb|/api/| 反向代理规则。通过 ConfigMap 保存 Nginx 配置后，调整代理目标或新增配置注释时不需要重新构建前端镜像。
 
 \reportfig{assets/report_figures/t5/t5-01-configmap-content.png}{Nginx 配置 ConfigMap 内容截图}{fig:t5-configmap-content}
 
@@ -318,7 +318,7 @@ frontend Deployment 中定义了 \verb|nginx-config| volume，volume 来源为 \
 
 ConfigMap 通过 \verb|envFrom| 注入时，适合传递短小的键值型配置，例如 Redis 主机名、端口、运行环境等；应用读取这些配置通常依赖环境变量，形式简单，适用于启动参数和少量配置项。ConfigMap 通过 Volume 挂载时，适合传递完整配置文件，例如 Nginx 配置、应用配置模板或多行脚本；应用可以像读取普通文件一样读取配置内容，结构更完整，也更适合复杂文本配置。
 
-本项目中后端 Redis 地址和端口属于典型键值配置，因此使用 ConfigMap 环境变量注入；前端 Nginx 反向代理配置属于完整文件，因此使用 ConfigMap Volume 挂载更合适。二者共同体现了 Kubernetes 配置外置化的两种常见方式。
+本项目中后端 Redis 地址和端口属于键值配置，因此使用 ConfigMap 环境变量注入；前端 Nginx 反向代理配置是完整文件，因此使用 ConfigMap Volume 挂载更合适。
 
 \subsection{任务6：HPA弹性伸缩}
 
@@ -356,7 +356,7 @@ HPA 控制器本身不直接采集 Pod 资源使用情况，而是基于 Metrics
 
 \reportfig{figures_A/T6/05_HPA触发扩容状态.png}{压测触发 HPA 扩容的中间状态截图}{fig:t6-hpa-scaling}
 
-图 \ref{fig:t6-hpa-scaling} 显示压测进行一段时间后，\verb|backend-hpa| 的 CURRENT CPU 指标已超过 60\% 的目标阈值，控制器开始增加 backend 副本数。该过程体现了 HPA 基于资源利用率进行闭环调节的基本逻辑。
+图 \ref{fig:t6-hpa-scaling} 显示压测进行一段时间后，\verb|backend-hpa| 的 CURRENT CPU 指标已超过 60\% 的目标阈值，控制器开始增加 backend 副本数。
 
 \begin{figure}[H]
   \centering
@@ -382,9 +382,9 @@ HPA 控制器本身不直接采集 Pod 资源使用情况，而是基于 Metrics
   \label{fig:t6-scale-down}
 \end{figure}
 
-图 \ref{fig:t6-scale-down} 为 T6 另一核心验收截图。在确认全部后台 \verb|curl| 任务已终止且 CPU 指标降至目标值以下后，\verb|backend-hpa| 将 CURRENT 指标恢复为约 \verb|1%/60%|，backend Pod 数量自然回落为 1。该结果验证了 HPA 缩容链路的完整性，表明弹性伸缩不仅能够在高负载时扩容，也能够在负载消除后回收多余计算资源。
+图 \ref{fig:t6-scale-down} 为 T6 另一核心验收截图。在确认全部后台 \verb|curl| 任务已终止且 CPU 指标降至目标值以下后，\verb|backend-hpa| 将 CURRENT 指标恢复为约 \verb|1%/60%|，backend Pod 数量回落为 1。这说明 HPA 在负载降低后会把多余副本缩回。
 
-单独的扩容与缩容截图能够证明两个关键状态，但不足以直观说明状态之间的触发关系。为此，图 \ref{fig:t6-hpa-timeline} 将本次实验整理为一条时间线：系统从单副本基线开始，在持续并发请求下由 Metrics Server 采集到 CPU 指标升高，HPA 计算期望副本数并驱动 Deployment 扩容；停止压测后，系统经过指标回落和缩容稳定窗口，最终恢复为单副本。该过程说明 HPA 并非依据单次瞬时指标直接增减 Pod，而是通过周期采集、控制器评估和稳定窗口共同完成闭环调节。
+图 \ref{fig:t6-hpa-timeline} 将本次 HPA 实验整理为一条时间线：系统从单副本开始，持续并发请求使 CPU 指标升高，HPA 计算期望副本数并驱动 Deployment 扩容；停止压测后，指标回落，经过缩容稳定窗口后恢复为单副本。这个过程也能看出，HPA 不会根据某一次瞬时指标立刻增减 Pod。
 
 \reportfig[0.95\textwidth]{figures/1.png}{HPA 压测、扩容与缩容全过程时间线}{fig:t6-hpa-timeline}
 
