@@ -2,7 +2,7 @@
 \mbox{}
 \subsection{A-0：Spark环境部署}
 
-为了在 Kubernetes 环境中运行 Spark 作业，本项目采用 Spark Operator 方式部署 Spark 集群。Spark Operator 是 Kubernetes 环境下用于管理 SparkApplication 资源的控制器，能够自动完成 Driver Pod、Executor Pod 的创建、监控与销毁。相比直接在命令行反复执行 spark-submit，这种方式更适合放在 CCE 集群中统一查看资源状态，也方便后续通过 Pod 日志排查问题。
+为了在 Kubernetes 环境中运行 Spark 作业，我们采用 Spark Operator 方式部署 Spark 集群。Spark Operator 是 Kubernetes 环境下用于管理 SparkApplication 资源的控制器，能够自动完成 Driver Pod、Executor Pod 的创建、监控与销毁。相比直接在命令行反复执行 spark-submit，这种方式更适合放在 CCE 集群中统一查看资源状态，也方便后续通过 Pod 日志排查问题。
 
 \subsubsection{Spark Operator安装}
 
@@ -30,7 +30,7 @@
 
 \subsubsection{本地环境补充验证截图}
 
-除 CCE 集群内的 \verb|figures_A/A-0| 截图外，项目还保留了一组本地与集群联调过程中的 Spark Operator 与 WordCount 提交截图（\verb|figures_B/A0/|），用于交叉验证环境配置与作业提交流程。
+除 CCE 集群内的 \verb|figures_A/A-0| 截图外，我们还保留了一组本地与集群联调过程中的 Spark Operator 与 WordCount 提交截图（\verb|figures_B/A0/|）。
 
 \begin{figure}[H]
 \centering
@@ -55,7 +55,7 @@
 \label{fig:a0_b_submit}
 \end{figure}
 
-图\ref{fig:a0_b_yaml} 与图\ref{fig:a0_b_submit} 分别对应 SparkApplication 参数配置与作业提交阶段，与图\ref{fig:a0_yaml}、图\ref{fig:a0_wordcount_submit} 相互印证。
+图\ref{fig:a0_b_yaml} 与图\ref{fig:a0_b_submit} 分别记录了 SparkApplication 参数配置和作业提交过程。
 
 \begin{figure}[H]
 \centering
@@ -64,7 +64,7 @@
 \label{fig:a0_b_completed}
 \end{figure}
 
-图\ref{fig:a0_b_completed} 表明 WordCount 作业中 Driver 与 Executor 均已完成运行，为 A-0 环境可用性提供补充证据。
+图\ref{fig:a0_b_completed} 中可以看到 WordCount 作业的 Driver 与 Executor 均已完成运行。
 
 \subsubsection{SparkApplication YAML参数配置}
 
@@ -171,7 +171,7 @@ WordCount 作业运行完成后，需要验证 Driver Pod 与 Executor Pod 是�
 \label{fig:a0_sparkapplication_completed}
 \end{figure}
 
-图\ref{fig:a0_sparkapplication_completed}从 SparkApplication 资源视角展示作业已经进入完成状态，与 Pod 状态和 Driver 日志相互印证，说明 A-0 环境部署与示例作业验证均已完成。
+图\ref{fig:a0_sparkapplication_completed}展示了 SparkApplication 资源的完成状态。结合前面的 Pod 状态和 Driver 日志，可以确认 A-0 示例作业已经跑完。
 
 
 \subsection{A-1：数据清洗}
@@ -331,7 +331,7 @@ dropna(subset=[核心字段])
 \label{fig:a2_query2}
 \end{figure}
 
-图\ref{fig:a2_query2}给出了评分人数排名前十的电影结果。榜单中多为《肖申克的救赎》《阿甘正传》《泰坦尼克号》等具有跨时代影响力的作品，其评分人数动辄数十万，说明这些影片不仅口碑好，而且被大量用户实际观看并参与打分，结果更具统计代表性。与单纯按 \verb|rating_score| 排序相比，按评分人数排序更能反映“社会共识度”：一部评分 9.0 但仅数千人评价的电影，可能主要来自核心影迷群体，而榜单前列影片则同时经受住了大规模观众的检验。该 Top-N 查询实现简单，但在产品侧常用于首页推荐、热门榜单和舆情监测，是 Spark SQL 中最常见的排序分析模式之一。
+图\ref{fig:a2_query2}给出了评分人数排名前十的电影结果。榜单中多为《肖申克的救赎》《阿甘正传》《泰坦尼克号》等知名影片，评分人数达到数十万，说明这些电影被大量用户观看并参与打分。与单纯按 \verb|rating_score| 排序相比，按评分人数排序更接近“热门程度”：一部评分 9.0 但只有数千人评价的电影，可能主要来自核心影迷群体，而榜单前列影片覆盖的观众范围更大。该 Top-N 查询实现简单，但在产品侧常用于首页推荐、热门榜单和舆情监测。
 
 \subsubsection{查询三：时间维度趋势分析}
 
@@ -357,7 +357,7 @@ dropna(subset=[核心字段])
 \label{fig:a2_query4}
 \end{figure}
 
-图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。与全局 Top-N 不同，本查询在 \verb|PARTITION BY country| 窗口内使用 \verb|ROW_NUMBER()| 排序，每个国家仅保留评分最高的前三部，因此能够突出法国、日本、美国等市场的本土高分作品，而不会被好莱坞大片垄断整张榜单。窗口函数在计算排名时不会折叠原始行，也不需要将国家表与电影表做额外 JOIN，适合“组内排序、组间独立”的分析场景。从结果可见，各国榜首电影类型与文化背景差异明显，说明同一评分标准下不同地区用户偏好仍具有地域特征，这也体现了 Spark SQL 窗口函数在精细化运营分析中的实用价值。
+图\ref{fig:a2_query4}展示了不同国家和地区评分排名靠前的代表性电影。与全局 Top-N 不同，本查询在 \verb|PARTITION BY country| 窗口内使用 \verb|ROW_NUMBER()| 排序，每个国家仅保留评分最高的前三部，因此能看到法国、日本、美国等地区各自的高分作品。窗口函数在计算排名时不会折叠原始行，也不需要将国家表与电影表做额外 JOIN，适合“组内排序、组间独立”的分析场景。从结果看，不同国家和地区的榜首电影类型差异较明显，说明用户偏好仍带有一定地域特征。
 
 \begin{figure}[H]
 \centering
@@ -366,11 +366,11 @@ dropna(subset=[核心字段])
 \label{fig:a2_csv_saved}
 \end{figure}
 
-图\ref{fig:a2_csv_saved} 表明部分查询结果已成功导出为 CSV 文件，说明 Spark SQL 分析不仅能在控制台展示，也可落盘为后续报告或二次分析提供数据副本。
+图\ref{fig:a2_csv_saved} 显示部分查询结果已导出为 CSV 文件，后续可以直接查看或复用这些结果。
 
 \subsubsection{统计结果截图与分析说明汇总}
 
-本实验共完成四类 Spark SQL 分析任务，覆盖了聚合分析、排序分析、时间趋势分析以及窗口函数分析等典型场景。实验结果表明，Spark SQL 能够在保持 SQL 易用性的同时，利用 Spark 的分布式计算能力处理大规模数据分析任务。通过 DataFrame 与 SQL 结合的方式，可以方便地实现复杂统计分析需求，为后续数据挖掘和机器学习任务提供可靠的数据支撑。
+本实验完成了四类 Spark SQL 查询，分别是聚合分析、排序分析、时间趋势分析和窗口函数分析。实际运行时，DataFrame 和 SQL 可以结合使用，查询结果也能保存为 CSV。对本次数据集来说，这几类查询已经覆盖了任务书要求的主要统计场景。
 
 
 
@@ -462,7 +462,7 @@ A-3 性能测试在 CCE 集群中通过 SparkApplication 提交 \verb|analysis.p
 \label{fig:a3_exec1_perf_console}
 \end{figure}
 
-图\ref{fig:a3_exec1_app_completed} 与图\ref{fig:a3_exec1_perf_console} 从资源状态与控制台输出两个角度确认单 Executor 轮次已跑通，并为表\ref{tab:a3_performance} 中 PySpark 单 Executor 耗时提供依据。
+图\ref{fig:a3_exec1_app_completed} 与图\ref{fig:a3_exec1_perf_console} 分别记录了单 Executor 轮次的资源状态和控制台输出，表\ref{tab:a3_performance} 中的 PySpark 单 Executor 耗时来自该轮运行。
 
 \begin{figure}[H]
 \centering
@@ -478,7 +478,7 @@ A-3 性能测试在 CCE 集群中通过 SparkApplication 提交 \verb|analysis.p
 \label{fig:a3_exec2_app_completed}
 \end{figure}
 
-图\ref{fig:a3_exec2_running} 与图\ref{fig:a3_exec2_app_completed} 对应双 Executor 配置下的运行中与完成状态，与图\ref{fig:a3_exec2_driver_completed}、图\ref{fig:a3_exec2_driver_log} 共同构成双 Executor 轮次的完整证据链。
+图\ref{fig:a3_exec2_running} 与图\ref{fig:a3_exec2_app_completed} 对应双 Executor 配置下的运行中与完成状态；Driver 状态和日志见图\ref{fig:a3_exec2_driver_completed}、图\ref{fig:a3_exec2_driver_log}。
 
 \begin{table}[H]
 \centering
@@ -587,7 +587,7 @@ PySpark & 2 & 1.1605 \\
 
 \subsubsection{性能对比与 Amdahl 加速比分析}
 
-表\ref{tab:a3_performance} 已给出三组测试的原始耗时。为更直观地呈现结论，图\ref{fig:a3_spark_amdahl} 将“三种执行模式运行时间对比”与“实测加速比—Amdahl 理论加速比对照”合并为同一张图，便于在同一视角下比较绝对性能与并行扩展效果。
+表\ref{tab:a3_performance} 已给出三组测试的原始耗时。图\ref{fig:a3_spark_amdahl} 把运行时间和 Amdahl 加速比放在同一张图中，便于直接比较 Pandas、单 Executor 和双 Executor 三种结果。
 
 Amdahl 定律用于描述并行计算的理论加速比，其表达式如下：
 
@@ -606,7 +606,7 @@ S(N)=\frac{1}{(1-f)+\frac{f}{N}}
 
 图\ref{fig:a3_spark_amdahl} 左侧柱状图对比了三种执行模式的实际耗时。Pandas 单机仅需 0.50 s，PySpark 单 Executor 为 1.15 s，双 Executor 为 1.16 s。在当前约 6 万条记录的小规模数据集上，Pandas 直接在单机内存中完成类型字段拆分与聚合，无需承担 Driver 启动、Executor 调度及跨节点通信等固定开销，因此耗时最短；两种 PySpark 配置的柱高几乎相同，表明在当前数据规模下增加 Executor 并未缩短总执行时间。
 
-图\ref{fig:a3_spark_amdahl} 右侧以单 Executor PySpark 运行为基准（加速比 1.00），展示了 Executor 数量由 1 增至 2 时的实测加速比与理论加速比。在假设可并行比例 $f=0.90$ 的理想条件下，Amdahl 定律预测 2 个 Executor 的理论加速比约为 1.82；而实测加速比仅为 0.99，不仅未接近线性加速，反而略低于无加速基线。这说明对小数据集而言，Spark 作业中 Driver 初始化、任务划分、Shuffle 通信、序列化以及 Kubernetes Pod 创建等串行或半串行开销占比较高，可并行计算部分尚未充分展开，增加 Executor 带来的理论收益被系统开销抵消。上述图表结论与表\ref{tab:a3_performance} 中的绝对耗时相互印证，也为下一节关于非线性加速原因的讨论提供了量化依据。
+图\ref{fig:a3_spark_amdahl} 右侧以单 Executor PySpark 运行为基准（加速比 1.00），展示了 Executor 数量由 1 增至 2 时的实测加速比与理论加速比。在假设可并行比例 $f=0.90$ 的理想条件下，Amdahl 定律预测 2 个 Executor 的理论加速比约为 1.82；而实测加速比仅为 0.99，低于无加速基线。对当前小数据集来说，Driver 初始化、任务划分、Shuffle 通信、序列化和 Kubernetes Pod 创建等开销占比较高，增加 Executor 并没有缩短总时间。
 
 \subsubsection{非线性加速原因讨论}
 
@@ -620,4 +620,4 @@ S(N)=\frac{1}{(1-f)+\frac{f}{N}}
 \item Kubernetes 环境下 Pod 创建和资源调度带来额外延迟。
 \end{enumerate}
 
-综合来看，Spark 的优势主要体现在大规模数据处理场景。当数据规模达到数 GB 甚至数十 GB 时，分布式并行计算能够显著降低总体执行时间；而对于当前约 6 万条记录的数据集，单机 Pandas 已能够高效完成分析任务，因此表现优于 Spark 集群模式。
+本次实验的数据量约 6 万条，单机 Pandas 已经可以很快完成分析任务，所以表现优于 Spark 集群模式。Spark 更适合数据规模更大、单机处理压力明显上升的场景；在小数据集上，Driver、Executor 和调度开销反而会占掉较多时间。

@@ -1,6 +1,6 @@
 \section{附加题实践}
 
-在完成 Spark 大数据分析基础任务之后，本项目继续完成课程设计任务书中的三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。这些内容分别对应监控、持续交付和分布式训练，均需要依赖前面已经搭建好的 Kubernetes 环境。本节按附加题 1、2、3 的顺序组织，每项均包含部署或实现过程、原理说明与验证结果；其中监控部署由郑瑞璟在 CCE 环境完成并提交截图，CI/CD 由李欣纯负责 Actions 构建推送、郑瑞璟负责云端 Deployment 更新验证，C-1 由李欣纯负责训练代码与结果分析、郑瑞璟负责在具备云资源的 CCE 环境中运行 Job 并整理云端日志截图。
+完成 Spark 大数据分析基础任务后，我们继续做了三项附加题：云原生监控部署、Web 应用 CI/CD 流水线以及 PyTorch 分布式 MNIST 训练（C-1）。这些任务都依赖前面已经搭好的 Kubernetes 环境。监控部署由郑瑞璟在 CCE 环境完成并保存截图；CI/CD 由李欣纯负责 Actions 构建推送，郑瑞璟负责云端 Deployment 更新验证；C-1 由李欣纯负责训练代码与结果分析，郑瑞璟负责在 CCE 环境中运行 Job 并整理云端日志截图。
 
 \subsection{附加题1：云原生监控系统}
 
@@ -28,7 +28,7 @@
 
 \reportfig{figures_A/附加题1/03_cce_monitoring_addon_running_console.png}{CCE 控制台云原生监控插件运行中}{fig:bonus1-plugin}
 
-图 \ref{fig:bonus1-plugin} 表明 \verb|kube-prometheus-stack| 插件已在 CCE 插件中心处于运行中状态，与集群内 Pod 状态相互印证。
+图 \ref{fig:bonus1-plugin} 显示 \verb|kube-prometheus-stack| 插件已在 CCE 插件中心处于运行中状态。
 
 \subsubsection{Prometheus Pull 采集原理}
 
@@ -81,7 +81,7 @@ CCE 云原生观测为任务书 Grafana Dashboard 的等价实现。
 
 \subsubsection{流水线设计与 GitHub Actions 配置}
 
-附加题 2 要求为第一部分 Web 应用搭建“代码提交 $\rightarrow$ 自动构建镜像 $\rightarrow$ 推送 SWR”的流水线，并在 CCE 中更新 Deployment 完成部署验证。本项目中，李欣纯在仓库 \verb|.github/workflows/| 目录编写 GitHub Actions workflow，完成镜像构建与推送；郑瑞璟在 CloudShell 中使用 workflow 输出的镜像 Tag 更新 Kubernetes Deployment，并在云端验证 Pod 重建和接口可用性。
+附加题 2 要求为第一部分 Web 应用搭建“代码提交 $\rightarrow$ 自动构建镜像 $\rightarrow$ 推送 SWR”的流水线，并在 CCE 中更新 Deployment 完成部署验证。李欣纯在仓库 \verb|.github/workflows/| 目录编写 GitHub Actions workflow，完成镜像构建与推送；郑瑞璟在 CloudShell 中使用 workflow 输出的镜像 Tag 更新 Kubernetes Deployment，并在云端验证 Pod 重建和接口可用性。
 
 流水线文件为 \verb|cicd-app-to-swr-cce.yml|，在 \verb|push| 至 \verb|main| 分支且 \verb|backend/|、\verb|frontend/| 或 workflow 本身发生变更时触发，亦支持 \verb|workflow_dispatch| 手动触发。镜像 Tag 采用 Git 提交 SHA 前 7 位（\verb|${GITHUB_SHA::7}|），便于与代码版本一一对应。SWR 登录凭据通过 GitHub Secrets 注入，避免写入仓库。
 
@@ -139,7 +139,7 @@ kubectl rollout status deployment/frontend
 
 \subsubsection{CI、CD 与 GitOps 概念说明}
 
-\textbf{持续集成（CI）}强调每次代码变更后自动执行构建与基础验证，尽早暴露依赖或编译问题。本项目中，backend 与 frontend 镜像的自动构建与推送属于 CI 范畴。
+\textbf{持续集成（CI）}强调每次代码变更后自动执行构建与基础验证，尽早暴露依赖或编译问题。本次 workflow 中，backend 与 frontend 镜像的自动构建与推送属于 CI 范畴。
 
 \textbf{持续部署（CD）}强调在 CI 成功后将制品发布至目标环境。本实验在 Actions 推送 SWR 后，由运维侧更新 CCE Deployment 镜像 Tag 并观察滚动更新，构成一次可追踪的 CD 验证流程。
 
@@ -153,7 +153,7 @@ kubectl rollout status deployment/frontend
 
 \reportfig{figures_A/附加题2/05_updated_pods_recreated_running.png}{更新后 backend、frontend 与 redis Pod 均 Running}{fig:bonus2-pods-running}
 
-接口可用性通过在 backend Pod 内访问本地 \verb|127.0.0.1:5000/api/ping| 与集群 Service \verb|backend-svc/api/ping| 进行验证，均返回 \verb|{"redis":"connected","status":"ok"}|，见图 \ref{fig:bonus2-api-ok}。上述证据链将“代码提交—镜像构建—SWR 推送—Deployment 更新—Pod 重建—业务接口可用”完整串联，满足附加题 2 的 CI/CD 验收要求。部署说明与截图清单见 \verb|figures_A/附加题2/C2_CICD说明.md|。
+接口可用性通过在 backend Pod 内访问本地 \verb|127.0.0.1:5000/api/ping| 与集群 Service \verb|backend-svc/api/ping| 进行验证，均返回 \verb|{"redis":"connected","status":"ok"}|，见图 \ref{fig:bonus2-api-ok}。这说明本次流程已经完成代码提交、镜像构建、SWR 推送、Deployment 更新、Pod 重建和接口访问验证。部署说明与截图清单见 \verb|figures_A/附加题2/C2_CICD说明.md|。
 
 \reportfig{figures_A/附加题2/06_updated_api_access_ok.png}{更新后 /api/ping 接口访问正常}{fig:bonus2-api-ok}
 
@@ -163,7 +163,7 @@ kubectl rollout status deployment/frontend
 
 \subsubsection{实验目标与模型结构}
 
-附加题 C-1 要求在 Kubernetes 上运行 PyTorch 分布式 MNIST 训练，对比单机与多进程（或多 Pod）场景下的训练耗时，并说明 AllReduce 梯度同步、数据并行与模型并行的区别。本实验由李欣纯完成训练脚本、容器镜像准备与结果分析；由于云服务器和 CCE 集群资源主要在郑瑞璟账号侧，单机 Job 与双进程 DDP 任务由郑瑞璟在华为云 \verb|cloud-course-cce| 集群中提交运行，并保存训练日志截图作为验收依据。
+附加题 C-1 要求在 Kubernetes 上运行 PyTorch 分布式 MNIST 训练，对比单机与多进程（或多 Pod）场景下的训练耗时，并说明 AllReduce 梯度同步、数据并行与模型并行的区别。本实验由李欣纯完成训练脚本、容器镜像准备与结果分析；由于云服务器和 CCE 集群资源主要在郑瑞璟账号侧，单机 Job 与双进程 DDP 任务由郑瑞璟在华为云 \verb|cloud-course-cce| 集群中提交运行，并保存训练日志截图。
 
 训练代码位于 \verb|extra/c1_ddp_mnist.py|，模型 \verb|MnistCnn| 包含两个卷积块（Conv + ReLU + MaxPool）与两层全连接分类器，在 MNIST 手写数字数据集上进行小 epoch 快速训练。脚本通过环境变量 \verb|WORLD_SIZE|、\verb|RANK|、\verb|LOCAL_RANK| 与 \verb|MASTER_ADDR| 判断是否启用 DDP；rank 0 进程在训练结束后输出 \verb|train_seconds|、\verb|final_loss| 与 \verb|test_accuracy|，便于与单机结果对比。
 
