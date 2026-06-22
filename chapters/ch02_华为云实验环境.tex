@@ -1,12 +1,12 @@
 \section{华为云实验环境}
 
-本章对课程设计使用的华为云实验环境进行说明。按照任务书要求，本项目主要使用华为云 SWR、CCE、OBS 和 ELB 四类服务：SWR 用于保存后端和前端容器镜像；CCE 用于提供托管 Kubernetes 集群；OBS 用于 Spark 大数据分析场景中的数据存储接口；ELB 用于将后端服务以公网入口暴露给外部访问。环境搭建过程不仅决定后续应用能否部署成功，也直接影响截图验收中关于 Kubernetes 版本、Worker 节点数量、节点状态和公网访问能力等关键评分点。
+课程设计实验主要用到华为云的 SWR、CCE、OBS 和 ELB。SWR 保存后端和前端镜像，CCE 提供 Kubernetes 集群，OBS 作为 Spark 数据读取的一种来源，ELB 用来给后端服务提供公网入口。后续部署能否跑通，基本都取决于这些资源是否先配置正确，例如 Kubernetes 版本、Worker 节点数量、节点 Ready 状态和公网访问入口。
 
-本项目在华为云华北-北京四区域开展实验，创建 CCE Standard 集群 \texttt{cloud-course-cce}，并配套创建 VPC、子网、Worker 节点和负载均衡资源。为了控制代金券消耗，同时满足任务书中不少于两个 Worker 节点和 Kubernetes 版本不低于 1.27 的要求，集群采用按需计费模式，Worker 节点规格选择 2 vCPU / 4 GiB。环境配置完成后，通过 CloudShell 连接集群并执行 \texttt{kubectl get nodes -o wide}、\texttt{kubectl cluster-info} 和 \texttt{kubectl version --client} 等命令进行验证。
+实验区域选择华北-北京四，创建的 CCE Standard 集群名称为 \texttt{cloud-course-cce}。集群同时配置了 VPC、子网、两个 Worker 节点和负载均衡资源。为了控制代金券消耗，Worker 节点采用 2 vCPU / 4 GiB 规格；Kubernetes 版本和节点数量仍满足任务书要求。集群创建完成后，我们在 CloudShell 中检查了节点列表、集群连接信息和 kubectl 客户端版本，确认后再继续部署应用。
 
 \subsection{云服务与资源配置}
 
-本项目使用的主要云服务及其作用如表 \ref{tab:cloud-env-summary} 所示。可以看到，SWR、CCE、OBS 和 ELB 分别对应镜像管理、容器编排、数据存储和公网访问四个层面，共同构成了后续实验的基础环境。
+表 \ref{tab:cloud-env-summary} 列出了本次实验实际用到的几类云服务。
 
 \begin{table}[H]
   \centering
@@ -37,7 +37,7 @@ SWR 是本项目中连接本地容器构建与云端 Kubernetes 部署的关键�
   \label{fig:env-swr-images}
 \end{figure}
 
-图 \ref{fig:env-swr-images} 中可以看到，郑瑞璟的 SWR 组织下已经有 \texttt{backend} 和 \texttt{frontend} 两个镜像，标签均为 \texttt{v1}。后续 CCE 部署引用的就是这里的镜像地址，而不是临时占位配置；如果私有镜像拉取失败，则需要在 Deployment 中配合 \texttt{imagePullSecrets} 处理鉴权问题。
+图 \ref{fig:env-swr-images} 中可以看到，郑瑞璟的 SWR 组织下已经有 \texttt{backend} 和 \texttt{frontend} 两个镜像，标签均为 \texttt{v1}。后续 CCE 部署引用的就是这里的镜像地址；如果私有镜像拉取失败，则需要在 Deployment 中配合 \texttt{imagePullSecrets} 处理鉴权问题。
 
 \subsubsection{CCE集群配置}
 
@@ -77,7 +77,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-vpc-list}
 \end{figure}
 
-图 \ref{fig:t2-vpc-list} 中，\texttt{cloud-course-vpc} 已处于可用状态，名称也与本报告记录一致。
+图 \ref{fig:t2-vpc-list} 中，\texttt{cloud-course-vpc} 已处于可用状态。
 
 \begin{figure}[H]
   \centering
@@ -86,7 +86,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-network-overview}
 \end{figure}
 
-图 \ref{fig:t2-cce-network-overview} 展示了 CCE 集群创建时的网络配置总览。该页面用于确认集群绑定的 VPC、子网和容器网络配置是否正确，避免后续 Service、Pod 通信或 ELB 绑定出现网络层面的配置不一致。
+图 \ref{fig:t2-cce-network-overview} 展示了 CCE 集群创建时的网络配置总览，页面中能看到集群绑定的 VPC、子网和容器网络配置。
 
 \begin{figure}[H]
   \centering
@@ -95,7 +95,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-network-model}
 \end{figure}
 
-图 \ref{fig:t2-cce-network-model} 进一步展示了 CCE 网络模型配置。该截图说明集群创建时已经明确选择 VPC、子网和容器网络模型，为后续 Pod 网络、Service 访问和集群内部通信提供基础。
+图 \ref{fig:t2-cce-network-model} 展示了 CCE 网络模型配置，可以看到集群使用的 VPC、子网和容器网络模型。
 
 \begin{figure}[H]
   \centering
@@ -104,7 +104,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-basic-summary}
 \end{figure}
 
-图 \ref{fig:t2-cce-basic-summary} 记录了 CCE 基础配置概要，主要用于核对集群名称、类型和 Kubernetes 版本等参数。
+图 \ref{fig:t2-cce-basic-summary} 中可以看到集群名称、集群类型和 Kubernetes 版本。
 
 \begin{figure}[H]
   \centering
@@ -113,7 +113,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-security-summary}
 \end{figure}
 
-图 \ref{fig:t2-cce-security-summary} 展示了网络与安全服务相关配置概要。该页面用于确认集群安全组、网络访问和相关云服务配置，为后续节点加入集群和服务暴露提供保障。
+图 \ref{fig:t2-cce-security-summary} 展示了网络与安全服务配置，包括安全组和相关云服务选项。
 
 \begin{figure}[H]
   \centering
@@ -122,7 +122,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-plugin-summary}
 \end{figure}
 
-图 \ref{fig:t2-cce-plugin-summary} 记录了网络配置和默认插件配置概要。CCE 集群中的网络插件、CoreDNS 和存储插件会直接影响 Pod 之间通信、域名解析和 PVC 挂载能力，因此该截图是后续应用部署和 Redis 持久化验证的环境依据。
+图 \ref{fig:t2-cce-plugin-summary} 展示了网络配置和默认插件配置。这里保留 CoreDNS、存储插件和容器网络插件，用于后续 Pod 通信、服务名解析和 PVC 挂载。
 
 \begin{figure}[H]
   \centering
@@ -140,7 +140,7 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-final-confirm}
 \end{figure}
 
-图 \ref{fig:t2-cce-final-confirm} 是提交创建 CCE 集群前的最终确认页面。该截图集中展示了集群创建前的关键参数，能够作为环境配置与报告记录一致性的证据。
+图 \ref{fig:t2-cce-final-confirm} 是提交创建 CCE 集群前的最终确认页面，用来核对集群名称、版本、节点和网络等参数。
 
 \begin{figure}[H]
   \centering
@@ -149,17 +149,17 @@ CCE 是第一部分云计算平台搭建的核心服务。项目创建的是 CCE
   \label{fig:t2-cce-creating}
 \end{figure}
 
-图 \ref{fig:t2-cce-creating} 显示 CCE 集群创建任务已经提交并进入创建中状态。该截图记录了从配置确认到实际创建的过程，说明环境不是仅停留在配置草稿阶段。
+图 \ref{fig:t2-cce-creating} 显示 CCE 集群创建任务已经提交，并进入创建中状态。
 
 \subsubsection{OBS数据存储配置}
 
-OBS 在任务书中主要服务于 Spark 大数据分析方向，用于保存待分析数据集并通过 \texttt{s3a://} 接口供 Spark 作业读取。本项目的 \texttt{spark/analysis.py} 支持将数据路径作为参数传入，因此既可以读取仓库中的本地 \texttt{douban\_movies.csv}，也可以在云端 Spark 环境中替换为 OBS 路径。由于当前截图文件夹中没有单独保存 OBS 控制台截图，本章不虚构 OBS 页面证据；后续 Spark 大数据分析章节将围绕数据读取方式、SparkApplication 配置和实际分析结果继续说明。
+OBS 对应 Spark 大数据分析中的数据存储场景，Spark 作业可以通过 \texttt{s3a://} 路径读取对象存储中的文件。本项目的 \texttt{spark/analysis.py} 支持把数据路径作为参数传入，因此既能读取仓库中的本地 \texttt{douban\_movies.csv}，也可以替换为 OBS 路径。当前截图材料中没有单独保存 OBS 控制台页面，因此这里不补放 OBS 截图，Spark 章节只围绕实际脚本和运行结果说明。
 
-从架构角度看，OBS 与 CCE 的关系并不是直接部署关系，而是作为 Spark 作业的数据源存在。Spark Driver 和 Executor 在运行时通过 S3A 协议访问对象存储中的数据文件，完成 DataFrame 加载、清洗和 SQL 分析。该设计将计算资源和数据存储解耦，符合云计算环境中“存算分离”的基本思想。
+OBS 和 CCE 不是直接部署关系。CCE 负责运行 Spark Driver 和 Executor，OBS 只提供数据文件；作业运行时通过 S3A 协议读取数据，再完成 DataFrame 加载、清洗和 SQL 分析。
 
 \subsubsection{ELB负载均衡配置}
 
-ELB 用于对外暴露后端服务。在 Kubernetes 中，后端 Service 被定义为 \texttt{LoadBalancer} 类型，并通过华为云 ELB 获得公网访问入口。任务书要求通过 ELB 公网 IP 访问 \texttt{/api/ping} 并返回 \texttt{\{"status":"ok"\}}，因此 ELB 是否创建并正常绑定，直接关系到 T3 应用部署验收。
+ELB 用于对外暴露后端服务。Kubernetes 中的后端 Service 设置为 \texttt{LoadBalancer} 类型后，会绑定华为云 ELB，外部浏览器或 curl 才能访问 \texttt{/api/ping}。T3 验收时主要看公网访问是否返回正常 JSON。
 
 \begin{figure}[H]
   \centering
@@ -181,7 +181,7 @@ ELB 用于对外暴露后端服务。在 Kubernetes 中，后端 Service 被定�
 
 \subsection{Kubernetes集群信息}
 
-Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验收内容。根据实验记录，集群创建完成后，通过 CCE 控制台和 CloudShell 分别进行了节点运行状态、kubectl 连接状态和客户端版本检查。相关环境参数如表 \ref{tab:k8s-cluster-info} 所示。
+T2 主要验收 Kubernetes 集群是否真正可用。集群创建完成后，我们分别在 CCE 控制台和 CloudShell 中检查了节点运行状态、kubectl 连接状态和客户端版本。相关环境参数见表 \ref{tab:k8s-cluster-info}。
 
 \begin{table}[H]
   \centering
@@ -236,7 +236,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \label{fig:t2-worker-confirm}
 \end{figure}
 
-图 \ref{fig:t2-worker-confirm} 是 Worker 节点规格确认页面。该截图作为节点数量和规格的控制台证据，与后续 \texttt{kubectl get nodes -o wide} 的命令行证据相互补充。
+图 \ref{fig:t2-worker-confirm} 是 Worker 节点规格确认页面，可以看到节点数量和规格。
 
 \begin{figure}[H]
   \centering
@@ -245,7 +245,7 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
   \label{fig:t2-worker-running}
 \end{figure}
 
-图 \ref{fig:t2-worker-running} 显示 CCE 控制台中两个 Worker 节点处于运行中状态。该截图从控制台视角证明节点已创建成功，而不仅是命令行输出中的临时状态。
+图 \ref{fig:t2-worker-running} 显示 CCE 控制台中两个 Worker 节点处于运行中状态，说明节点已经创建成功。
 
 \subsubsection{kubectl连接与节点状态}
 
@@ -282,4 +282,4 @@ Kubernetes 集群信息是本章的重点，也是任务书中 T2 的直接验�
 
 本项目基础任务主要使用 Kubernetes 的 \texttt{default} 命名空间，便于课程设计验收时统一查看 Pod、Deployment、Service、ConfigMap、Secret、PVC 和 HPA 等资源。后端 Deployment 命名为 \texttt{backend}，Redis Deployment 命名为 \texttt{redis}，前端 Deployment 命名为 \texttt{frontend}；后端 Service 命名为 \texttt{backend-svc}，Redis Service 命名为 \texttt{redis-svc}，前端 Service 命名为 \texttt{frontend-svc}。配置资源方面，后端使用 \texttt{backend-config} 注入 Redis 地址和端口，使用 \texttt{redis-secret} 保存 Redis 密码字段；持久化存储方面，Redis 使用 \texttt{redis-data-pvc} 申请云硬盘存储。
 
-资源规划遵循以下原则：第一，业务资源命名与任务书中的组件名称保持一致，便于截图识别和答辩说明；第二，敏感配置与非敏感配置分离，分别放入 Secret 和 ConfigMap；第三，对外访问只通过后端 LoadBalancer Service 暴露，Redis 保持 ClusterIP 内部访问，降低不必要的公网暴露风险；第四，后续 Spark Operator 或监控系统如需单独命名空间，将在对应章节中说明。本章环境配置完成后，后续章节即可在该 Kubernetes 集群之上继续完成应用部署、持久化、配置挂载、弹性伸缩和 Spark 大数据分析任务。
+资源命名尽量和任务书中的组件名称保持一致，便于截图核对。敏感配置放入 Secret，普通配置放入 ConfigMap；对外访问只开放后端 LoadBalancer Service，Redis 保持 ClusterIP 内部访问。Spark Operator 和监控系统需要单独命名空间时，在对应实验步骤中再创建。
