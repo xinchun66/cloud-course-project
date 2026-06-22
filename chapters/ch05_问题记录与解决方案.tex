@@ -1,6 +1,6 @@
 \section{问题记录与解决方案}
 
-课程设计实施时，问题主要集中在镜像构建与推送、CCE 集群配置、Kubernetes YAML 部署、Spark Operator 作业提交和数据分析脚本运行这几部分。由于实验环境依赖公网镜像仓库、跨组织 SWR 鉴权以及动态资源调度，部署与验证阶段出现了一些异常现象。本章只记录具有代表性的故障现场及其定位思路，正常验收截图已在第三、四章对应任务中呈现；此处重点说明问题成因、排查依据与最终处理方式，以反映项目实施中的真实排错过程。
+课程设计实施时，问题主要集中在镜像构建与推送、CCE 集群配置、Kubernetes YAML 部署、Spark Operator 作业提交和数据分析脚本运行这几部分。因为实验环境依赖公网镜像仓库、跨组织 SWR 鉴权和动态资源调度，部署过程中出现过多次异常。下面记录几个实际排查过的问题，包括现象、原因和处理方式。
 
 \subsection{第一部分问题记录}
 
@@ -139,7 +139,7 @@ Spark Driver 运行于容器内，与本地开发环境的文件路径并不相�
 
 \subsubsection{性能对比结果的非线性现象}
 
-A-3 实验中，Pandas 单机耗时（0.50 s）低于 PySpark 单 Executor（1.15 s）与双 Executor（1.16 s），增加 Executor 未带来加速。这并非实验操作失误，而是小数据集下 Spark 启动开销、任务调度、Shuffle 与 K8s Pod 创建成本占比较高所致。该现象已在第四章结合 Amdahl 定律分析；本章不再重复展示性能对比图，仅将其作为分布式计算适用边界的问题加以记录。
+A-3 实验中，Pandas 单机耗时（0.50 s）低于 PySpark 单 Executor（1.15 s）与双 Executor（1.16 s），增加 Executor 没有带来加速。结合 Driver 日志和 Amdahl 分析看，主要原因是当前数据集较小，Spark 启动、任务调度、Shuffle 和 K8s Pod 创建等固定开销占比较高。
 
 \subsubsection{云原生监控部署问题}
 
@@ -152,7 +152,7 @@ A-3 实验中，Pandas 单机耗时（0.50 s）低于 PySpark 单 Executor（1.1
   \label{fig:ch5-helm-timeout}
 \end{figure}
 
-图 \ref{fig:ch5-helm-timeout} 记录了 \verb|helm repo add| 或 \verb|helm repo update| 阶段的网络超时错误。处理方式为：在本地下载 \verb|kube-prometheus-stack| Chart 离线包，通过 \verb|helm install| 本地路径完成安装，绕过对 GitHub Pages 的实时访问依赖。监控组件部署成功后的运行状态与 Grafana 面板已在实验材料中单独归档，不属于故障现场，故本章不再重复插图。
+图 \ref{fig:ch5-helm-timeout} 记录了 \verb|helm repo add| 或 \verb|helm repo update| 阶段的网络超时错误。处理方式为：在本地下载 \verb|kube-prometheus-stack| Chart 离线包，通过 \verb|helm install| 本地路径完成安装，绕过对 GitHub Pages 的实时访问依赖。监控组件部署成功后的运行状态与 Grafana 面板放在附加题材料中。
 
 \subsubsection{CI/CD 流水线部署问题}
 
@@ -174,8 +174,8 @@ Deployment 镜像切换后，曾在 CloudShell 中直接访问 \verb|backend-svc
   \label{fig:ch5-cicd-svc-ok}
 \end{figure}
 
-\subsection{本章小结}
+\subsection{问题小结}
 
-本章按实施顺序归纳了课程设计中的主要故障及其处理路径。第一部分中，Docker Hub 拉取不稳定与 SWR 组织/标签不一致影响镜像交付；CCE 部署阶段私有镜像 \verb|401| 鉴权失败与 LoadBalancer 外部 IP Pending 是阻碍公网访问的关键瓶颈；HPA 验证则暴露了压测工具缺失、后台进程残留与指标采集延迟等运维细节。第二部分中，Spark Operator 与 PySpark 作业先后遇到公共镜像拉取困难、Driver 内存低于下限、集群资源不足、跨组织镜像权限拒绝以及 Python 依赖缺失等问题；数据路径配置不当会导致分布式环境下文件找不到；性能对比的非线性结果则提示须结合数据规模解读并行收益。附加题中，监控部署的 Helm 远程仓库访问超时通过离线 Chart 安装解决；CI/CD 验证则因 kubeconfig 私钥格式与内网 API Server 限制，改为 Actions 构建推送 SWR 与 CloudShell 半自动更新 Deployment 的协作模式。
+这些问题多数来自环境、镜像、权限和资源调度。第一部分中，Docker Hub 拉取不稳定、SWR 组织或标签不一致、私有镜像鉴权失败、LoadBalancer 外部 IP Pending 都会影响应用部署；HPA 验证时还遇到压测工具缺失、后台进程残留和指标采集延迟。Spark 部分的问题更多集中在镜像拉取、Driver 内存、集群资源、跨组织镜像权限和 Python 依赖。附加题中，监控组件最终改用离线 Chart 安装，CI/CD 则采用 GitHub Actions 构建推送镜像、CloudShell 更新 Deployment 的方式完成验证。
 
-上述问题的共同特征在于：表象往往出现在 Pod 状态或 Service 字段，根因却可能位于网络连通性、镜像权限、资源配额或配置参数等不同层面。通过 \verb|kubectl describe|、Pod 日志与控制台 Events 进行交叉验证，逐项排除假设，是云原生环境排错的基本方法。这些经验为项目最终验收提供了保障，也为后续类似场景的故障定位积累了可参考的处理流程。
+这些问题表面上往往出现在 Pod 状态或 Service 字段，实际原因可能在网络连通性、镜像权限、资源配额或配置参数上。排查时，我们主要结合 \verb|kubectl describe|、Pod 日志和控制台 Events 逐项确认，先判断问题发生在哪一层，再回到对应的 YAML、镜像或云资源配置中修改。

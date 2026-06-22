@@ -1,6 +1,6 @@
 \section{总结与收获}
 
-本次课程设计主要完成了两部分工作：一是在华为云 CCE 上部署后端、Redis 和前端服务，二是在同一套云环境中运行 Spark 分析任务。和本地实验相比，云端实验更容易暴露配置细节问题，例如镜像地址、Service 类型、PVC 绑定状态、HPA 指标采集和 Spark Driver 资源限制等。本章结合实际调试过程，总结本次课设中的主要收获。
+本次课程设计主要完成了两部分工作：一是在华为云 CCE 上部署后端、Redis 和前端服务，二是在同一套云环境中运行 Spark 分析任务。和本地实验相比，云端实验更容易暴露配置细节问题，例如镜像地址、Service 类型、PVC 绑定状态、HPA 指标采集和 Spark Driver 资源限制等。下面结合实际调试过程总结本次课设中的收获。
 
 \subsection{云计算平台搭建总结}
 
@@ -8,7 +8,7 @@
 
 在开始做容器化之前，后端、前端和 Redis 更像是几个分散的组件。写完 Dockerfile 并用 Docker Compose 联调后，应用运行环境被固定到了镜像和 compose 配置里，后续再迁移到 CCE 时也有了明确的镜像来源和端口约定。
 
-这部分最直接的收获是把 Dockerfile、容器、SWR 和 Kubernetes 部署流程串联起来。Dockerfile 负责构建镜像，Docker Compose 用来先在本地确认后端能连接 Redis，SWR 则提供 CCE 拉取镜像的位置。只要其中一个名称或 Tag 写错，Pod 就可能停留在镜像拉取阶段，这一点在后续排错中体现得很明显。
+这部分最直接的收获是把 Dockerfile、容器、SWR 和 Kubernetes 部署流程串联起来。Dockerfile 负责构建镜像，Docker Compose 用来先在本地确认后端能连接 Redis，SWR 则提供 CCE 拉取镜像的位置。只要其中一个名称或 Tag 写错，Pod 就可能停留在镜像拉取阶段，后面排查镜像问题时这一点很明显。
 
 Kubernetes 部署阶段主要围绕 Deployment、Pod 和 Service 展开。Deployment 管副本和滚动更新，Pod 承载具体容器，Service 负责访问入口和服务发现。只有把这几层关系放到实际的后端、前端和 Redis 部署里看，才能理解为什么 Pod 已经 Running 但接口仍可能访问失败，也能更快定位问题是在镜像、配置、Service 还是 ELB 绑定上。
 
@@ -16,7 +16,7 @@ Kubernetes 部署阶段主要围绕 Deployment、Pod 和 Service 展开。Deploy
 
 \subsubsection{配置分离、持久化与弹性伸缩理解}
 
-ConfigMap、Secret、PVC 和 HPA 是本次课设中比较能体现 Kubernetes 运维特点的几类资源。
+ConfigMap、Secret、PVC 和 HPA 是本次课设中用得比较多的几类 Kubernetes 资源。
 
 ConfigMap 与 Secret 解决的是配置放在哪里的问题。Redis 地址、端口这类普通配置放在 ConfigMap 中，密码放在 Secret 中，比直接写进镜像或代码更容易调整，也更符合部署环境经常变化的情况。
 
@@ -34,7 +34,7 @@ Spark 部分使用豆瓣电影数据集完成数据清洗、统计查询和性�
 
 数据清洗阶段主要使用 Spark DataFrame API 完成数据加载、Schema 查看、缺失值统计和字段处理。清洗策略不能只追求删除缺失值，还要看字段在后续查询中是否重要；核心字段缺失会影响统计结果，辅助字段则可以用占位值填充。
 
-Spark SQL 查询部分覆盖了分组聚合、Top-N、年份趋势和窗口函数。几类查询写法不复杂，但在分布式环境中运行时，需要通过 Driver 日志和结果截图确认作业确实在集群里完成，而不是只在本地得出结果。
+Spark SQL 查询部分覆盖了分组聚合、Top-N、年份趋势和窗口函数。几类查询写法不复杂，但在分布式环境中运行时，还需要通过 Driver 日志和结果截图确认作业确实在集群里完成。
 
 Spark Operator 的作用也比较清楚：它把 Spark 作业变成 Kubernetes 中的 SparkApplication 资源，由控制器负责创建 Driver 和 Executor Pod。实际调试时，Driver 内存过小、镜像权限不足、依赖库缺失都会直接反映到 Pod 状态或日志中。
 
@@ -52,18 +52,18 @@ Spark Operator 的作用也比较清楚：它把 Spark 作业变成 Kubernetes �
 
 \subsubsection{主要挑战}
 
-本次课设最耗时的部分不是编写 YAML 本身，而是排查云端环境中的连锁问题。镜像仓库、负载均衡、存储卷、Service、Pod 事件和日志经常需要结合查看，单看某一个页面很难直接判断根因。
+本次课设最耗时的部分其实是排查云端环境中的连锁问题。镜像仓库、负载均衡、存储卷、Service、Pod 事件和日志经常需要结合查看，单看某一个页面很难直接判断根因。
 
 Spark 部分也有类似情况。分析脚本没有打进镜像、数据路径不一致、镜像缓存未更新、Pandas 或 Matplotlib 缺失，都会导致 Driver 失败。排查时需要先看 Pod 状态，再看 Driver 日志，最后回到 Dockerfile、SparkApplication YAML 或数据路径上修改。
 
-这些问题处理完之后，对 CCE、SWR、ELB、PVC、HPA 和 Spark Operator 之间的关系有了更清楚的认识。它们不是彼此独立的名词，而是在同一条部署链路中互相影响的组件。
+这些问题处理完之后，我们对 CCE、SWR、ELB、PVC、HPA 和 Spark Operator 之间的关系有了更清楚的认识。它们都在同一条部署链路中，前面的镜像、网络或权限配置出错，后面的 Pod、Service 或 Spark 作业就会受到影响。
 
 \subsubsection{改进方向}
 
-本项目已经完成任务书要求的主要内容，但还有一些可以继续改进的地方。
+我们已经完成任务书要求的主要内容，但还有一些可以继续改进的地方。
 
 一是 CI/CD 还可以做得更完整。目前流水线已经能构建镜像并推送 SWR，后续可以继续减少手工更新 Deployment 的步骤。二是 Spark 数据源可以进一步切换到 OBS，减少对仓库本地数据文件的依赖。三是监控和日志可以继续完善，把 Prometheus/Grafana 的指标和应用日志结合起来，排错时会更方便。
 
 性能测试方面，如果有更大的数据集和更多节点，可以继续测试不同 Executor 数量下的耗时变化。这样得到的加速比会比当前小数据集更有参考价值。
 
-总体来看，这次课设把课堂上相对抽象的 Docker、Kubernetes、HPA、PVC、Spark 和 DDP 放到了同一个项目中。很多概念是在配置出错和排错过程中逐步理解清楚的，例如 Service 如何关联 Pod、PVC 为什么能保留数据、Spark 增加 Executor 后为什么不一定线性加速。后续如果继续做云原生或分布式计算相关项目，这些经验仍然有参考价值。
+这次课设把课堂上相对抽象的 Docker、Kubernetes、HPA、PVC、Spark 和 DDP 放到了同一个项目中。很多概念是在配置出错和排错过程中逐步理解清楚的，例如 Service 如何关联 Pod、PVC 为什么能保留数据、Spark 增加 Executor 后为什么不一定线性加速。后续如果继续做云原生或分布式计算相关项目，这些经验仍然有参考价值。
